@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Tutor - Login / Signup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+  <style>
+    /* Global styles for body and fonts */
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      position: relative;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    /* Dynamic MAGICAL Gradient Background Animation */
+    .animated-gradient-bg {
+      background: linear-gradient(135deg, #e0f7f7, #d4f0f7, #f0e0f7, #f7f0e0);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Custom shadow for cards/modals */
+    .shadow-3xl {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Primary button styling */
+    .btn-primary {
+      background-color: #14b8a6;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .btn-primary:hover {
+      background-color: #0d9488;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+    /* Secondary button styling */
+    .btn-secondary {
+      background-color: #f0f4f8;
+      color: #4a5568;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .btn-secondary:hover {
+      background-color: #e2e8f0;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    /* Custom select dropdown arrow */
+    .custom-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1.5em 1.5em;
+      padding-right: 2.5rem;
+    }
+    /* Simple spinner for loading states */
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border-left-color: #14b8a6;
+      animation: spin 1s ease infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Input focus styles */
+    input:focus, select:focus {
+      outline: none;
+      border-color: transparent;
+      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4);
+    }
+
+    /* Custom Alert/Modal styles */
+    .custom-modal-content {
+      transform: scale(0.95);
+      opacity: 0;
+      transition: all 0.3s ease-out;
+    }
+    .custom-modal-content.show {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    /* Pop-in animation for the mission statement */
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      80% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .mission-pop-in {
+      animation: popIn 0.5s ease-out forwards;
+    }
+
+    /* Lottie Background Styles */
+    .lottie-background {
+      position: fixed;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 80%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    @media (max-width: 768px) {
+      .lottie-background {
+        display: none;
+      }
+    }
+
+    /* Layout Adjustments */
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .header-section {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 6rem;
+    }
+
+    .main-content {
+      width: 100%;
+      height: calc(100vh - 10rem); /* Adjust based on header height */
+      position: absolute;
+      top: 10rem;
+      left: 0;
+    }
+
+    .mission-section {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 24rem;
+      padding: 2rem;
+    }
+
+    .form-section {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 24rem;
+      padding: 2rem;
+    }
+	@media (max-width: 768px) {
+    .main-content {
+      position: static !important;
+      height: auto !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .mission-section,
+    .form-section {
+      position: static !important;
+      width: 100% !important;
+      padding: 1.25rem !important;
+      margin-bottom: 1.5rem;
+    }
+
+    .mission-section {
+      order: 1;
+    }
+
+    .form-section {
+      order: 2;
+    }
+
+    .auth-container {
+      padding: 1.5rem !important;
+    }
+
+    .header-section {
+      margin-bottom: 2rem;
+    }
+  }
+  </style>
+</head>
+<body class="animated-gradient-bg">
+  <lottie-player class="lottie-background" src="https://assets.lottiefiles.com/packages/lf20_kkflmtur.json" background="transparent" speed="0.5" loop autoplay></lottie-player>
+  <div id="root" class="auth-container"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const API_BASE_URL = 'http://localhost:5000/api';
+
+    const roleOptions = ['Student', 'Parent', 'Teacher'];
+    const gradeOptions = [
+      'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+      'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+      'Class 11', 'Class 12'
+    ];
+    const classOptions = ['K', ...gradeOptions];
+
+    const setToken = (token) => localStorage.setItem('token', token);
+    const setUser = (user) => localStorage.setItem('user', JSON.stringify(user));
+
+    const showCustomAlert = (title, message, isConfirm = false, onConfirm = () => {}, onCancel = () => {}) => {
+      const modalId = 'customModal';
+      let modal = document.getElementById(modalId);
+
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] p-4 hidden';
+        modal.innerHTML = `
+          <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full custom-modal-content" id="customModalContent">
+            <h3 class="text-xl font-bold text-gray-800 mb-4" id="customModalTitle"></h3>
+            <p class="text-gray-700 mb-6" id="customModalMessage"></p>
+            <div class="flex justify-end space-x-4" id="customModalActions">
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      document.getElementById('customModalTitle').innerText = title;
+      document.getElementById('customModalMessage').innerText = message;
+      const actionsDiv = document.getElementById('customModalActions');
+      actionsDiv.innerHTML = '';
+
+      const createButton = (text, classes, onClick) => {
+        const button = document.createElement('button');
+        button.innerText = text;
+        button.className = `px-4 py-2 rounded-md font-semibold transition-colors duration-200 ${classes}`;
+        button.onclick = () => {
+          onClick();
+          document.getElementById('customModalContent').classList.remove('show');
+          modal.classList.remove('flex');
+          modal.classList.add('hidden');
+        };
+        return button;
+      };
+
+      if (isConfirm) {
+        actionsDiv.appendChild(createButton('Cancel', 'bg-gray-200 text-gray-700 hover:bg-gray-300', onCancel));
+        actionsDiv.appendChild(createButton('Confirm', 'bg-teal-600 text-white hover:bg-teal-700', onConfirm));
+      } else {
+        actionsDiv.appendChild(createButton('OK', 'bg-teal-600 text-white hover:bg-teal-700', onConfirm));
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => {
+        document.getElementById('customModalContent').classList.add('show');
+      }, 10);
+    };
+
+    const Login = ({ onLoginSuccess, onNavigateToSignup }) => {
+      const [identifier, setIdentifier] = useState('');
+      const [password, setPassword] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [showPassword, setShowPassword] = useState(false);
+
+      const handleTogglePassword = () => {
+        setShowPassword(!showPassword);
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+          const response = await axios.post(`${API_BASE_URL}/login`, { identifier, password });
+          setToken(response.data.token);
+          setUser(response.data.user);
+          onLoginSuccess();
+        } catch (err) {
+          setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+          console.error('Login Error:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="bg-white p-8 rounded-3xl shadow-3xl w-full max-w-md border border-gray-100">
+          <h2 className="text-4xl font-bold mb-8 text-center text-gray-800">Welcome Back!</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="identifier" className="block text-gray-700 text-base font-semibold mb-2">
+                Username or Mobile Number
+              </label>
+              <input
+                type="text"
+                id="identifier"
+                className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-gray-700 text-base font-semibold mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm pr-12"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleTogglePassword}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.622a8.967 8.967 0 0 0 0 6.75m.995-6.75a8.967 8.967 0 0 1 7.005-4.232c1.472 0 2.94.382 4.252 1.106m1.346 1.346a8.967 8.967 0 0 1 1.106 4.252c0 1.472-.382 2.94-1.106 4.252M2.5 10.5c.66 0 1.32.08 1.98.24m-.995 6.75a8.967 8.967 0 0 0 7.005 4.232c1.472 0 2.94-.382 4.252-1.106m1.346-1.346c.724-.724 1.29-1.558 1.745-2.48m.995-6.75a8.967 8.967 0 0 1 4.232 7.005c0 1.472-.382 2.94-1.106 4.252M12 12a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 0a3 3 0 0 0 0 6 3 3 0 0 0 0-6Z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            <button
+              type="submit"
+              className="w-full btn-primary flex items-center justify-center space-x-2"
+              disabled={loading}
+            >
+              {loading ? <div className="spinner mr-2"></div> : null}
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+          <p className="mt-8 text-center text-gray-600 text-lg">
+            Don't have an account?{' '}
+            <button
+              onClick={onNavigateToSignup}
+              className="text-teal-600 hover:underline font-semibold transition-colors duration-200"
+            >
+              Sign Up
+            </button>
+          </p>
+        </div>
+      );
+    };
+
+    const Signup = ({ onSignupSuccess, onNavigateToLogin }) => {
+      const [username, setUsername] = useState('');
+      const [mobileNumber, setMobileNumber] = useState('');
+      const [password, setPassword] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
+      const [role, setRole] = useState(roleOptions[0]);
+      const [studentClass, setStudentClass] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [success, setSuccess] = useState('');
+      const [showPassword, setShowPassword] = useState(false);
+      const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+      const handleTogglePassword = () => {
+        setShowPassword(!showPassword);
+      };
+
+      const handleToggleConfirmPassword = () => {
+        setShowConfirmPassword(!showConfirmPassword);
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setSuccess('');
+
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const payload = {
+            username,
+            mobile_number: mobileNumber,
+            password,
+            role,
+            student_class: role === 'Student' ? studentClass : null,
+          };
+          const response = await axios.post(`${API_BASE_URL}/signup`, payload);
+          setSuccess(response.data.message + " You can now log in.");
+          setUsername('');
+          setMobileNumber('');
+          setPassword('');
+          setConfirmPassword('');
+          setStudentClass('');
+          setTimeout(onNavigateToLogin, 2000);
+        } catch (err) {
+          setError(err.response?.data?.error || 'Signup failed. Please try again.');
+          console.error('Signup Error:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="bg-white p-8 rounded-3xl shadow-3xl w-full max-w-md border border-gray-100">
+          <h2 className="text-4xl font-bold mb-8 text-center text-gray-800">Create Your Account</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="signup-username" className="block text-gray-700 text-base font-semibold mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                id="signup-username"
+                className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-mobile" className="block text-gray-700 text-base font-semibold mb-2">
+                Mobile Number
+              </label>
+              <input
+                type="tel"
+                id="signup-mobile"
+                className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-password" className="block text-gray-700 text-base font-semibold mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="signup-password"
+                  className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm pr-12"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleTogglePassword}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.622a8.967 8.967 0 0 0 0 6.75m.995-6.75a8.967 8.967 0 0 1 7.005-4.232c1.472 0 2.94.382 4.252 1.106m1.346 1.346a8.967 8.967 0 0 1 1.106 4.252c0 1.472-.382 2.94-1.106 4.252M2.5 10.5c.66 0 1.32.08 1.98.24m-.995 6.75a8.967 8.967 0 0 0 7.005 4.232c1.472 0 2.94-.382 4.252-1.106m1.346-1.346c.724-.724 1.29-1.558 1.745-2.48m.995-6.75a8.967 8.967 0 0 1 4.232 7.005c0 1.472-.382 2.94-1.106 4.252M12 12a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 0a3 3 0 0 0 0 6 3 3 0 0 0 0-6Z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-gray-700 text-base font-semibold mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  className="w-full px-5 py-3 border border-gray-200 rounded-xl text-gray-800 bg-white focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm pr-12"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleToggleConfirmPassword}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.622a8.967 8.967 0 0 0 0 6.75m.995-6.75a8.967 8.967 0 0 1 7.005-4.232c1.472 0 2.94.382 4.252 1.106m1.346 1.346a8.967 8.967 0 0 1 1.106 4.252c0 1.472-.382 2.94-1.106 4.252M2.5 10.5c.66 0 1.32.08 1.98.24m-.995 6.75a8.967 8.967 0 0 0 7.005 4.232c1.472 0 2.94-.382 4.252-1.106m1.346-1.346c.724-.724 1.29-1.558 1.745-2.48m.995-6.75a8.967 8.967 0 0 1 4.232 7.005c0 1.472-.382 2.94-1.106 4.252M12 12a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 0a3 3 0 0 0 0 6 3 3 0 0 0 0-6Z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="role" className="block text-gray-700 text-base font-semibold mb-2">
+                Role
+              </label>
+              <select
+                id="role"
+                className="w-full px-5 py-3 border border-gray-200 rounded-xl custom-select bg-white text-gray-700 focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                required
+              >
+                {roleOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {role === 'Student' && (
+              <div>
+                <label htmlFor="studentClass" className="block text-gray-700 text-base font-semibold mb-2">
+                  Class (K-12)
+                </label>
+                <select
+                  id="studentClass"
+                  className="w-full px-5 py-3 border border-gray-200 rounded-xl custom-select bg-white text-gray-700 focus:ring-4 focus:ring-teal-300 focus:border-transparent transition duration-300 ease-in-out text-lg shadow-sm"
+                  value={studentClass}
+                  onChange={(e) => setStudentClass(e.target.value)}
+                  required={role === 'Student'}
+                >
+                  <option value="">Select Class</option>
+                  {classOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            {success && <p className="text-green-500 text-sm text-center">{success}</p>}
+            <button
+              type="submit"
+              className="w-full btn-primary flex items-center justify-center space-x-2"
+              disabled={loading}
+            >
+              {loading ? <div className="spinner mr-2"></div> : null}
+              {loading ? 'Signing Up...' : 'Sign Up'}
+            </button>
+          </form>
+          <p className="mt-8 text-center text-gray-600 text-lg">
+            Already have an account?{' '}
+            <button
+              onClick={onNavigateToLogin}
+              className="text-teal-600 hover:underline font-semibold transition-colors duration-200"
+            >
+              Login
+            </button>
+          </p>
+        </div>
+      );
+    };
+
+    const AuthApp = () => {
+      const [view, setView] = useState('login');
+      const handleLoginSuccess = () => {
+        window.location.href = '/index.html';
+      };
+      const handleSignupSuccess = () => {
+        setView('login');
+      };
+
+      return (
+        <div className="auth-container">
+          <div className="header-section">
+            <h1 className="text-6xl font-extrabold text-gray-800 drop-shadow-lg">
+              🎓 Mentoro <span className="text-teal-600">AI</span>
+            </h1>
+          </div>
+          <div className="main-content">
+            <div className="mission-section bg-green-50 p-8 rounded-3xl shadow-lg border border-green-200 text-center mission-pop-in">
+              <h2 className="text-3xl font-bold text-green-700 mb-4 flex items-center justify-center">
+                <span className="mr-3 text-4xl">💡</span> Our Mission
+              </h2>
+              <p className="text-green-800 text-xl leading-relaxed">
+                Empowering every student with personalized learning, making education accessible and engaging for all.
+              </p>
+            </div>
+            <div className="form-section">
+              {view === 'login' && <Login onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setView('signup')} />}
+              {view === 'signup' && <Signup onSignupSuccess={handleSignupSuccess} onNavigateToLogin={() => setView('login')} />}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AuthApp />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Tutor App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.12/dist/cropper.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.12/dist/cropper.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+  <style>
+  /* Base styles for body and font families */
+  body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: #f0f4f8;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+  }
+
+  /* Playful font for certain elements */
+  .playful-text {
+    font-family: 'Comic Neue', cursive;
+  }
+
+  /* Enhanced Gradient Background Animation */
+  .animated-gradient-bg {
+    background: linear-gradient(135deg, #a3bffa, #fefcbf, #9ae6b4, #fed7aa);
+    background-size: 600% 600%;
+    animation: gradientShift 20s ease infinite;
+  }
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Enhanced Speech Popup */
+  .speech-popup {
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fef9c3;
+    border: 3px solid #facc15;
+    padding: 1.5rem 2.5rem;
+    border-radius: 15px;
+    font-weight: 700;
+    color: #92400e;
+    z-index: 10000;
+    animation: fadeInOut 2.5s ease-in-out;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(-15px); }
+    10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-15px); }
+  }
+
+  /* Enhanced Chat Bubble */
+  .chat-bubble {
+    background-color: #e0f2fe;
+    border-radius: 1.5rem;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
+    margin-left: 1.5rem;
+    color: #1e293b;
+    transition: transform 0.3s ease;
+  }
+  .chat-bubble:hover {
+    transform: translateY(-3px);
+  }
+  .chat-bubble::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 25px;
+    width: 0;
+    height: 0;
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    border-right: 12px solid #e0f2fe;
+  }
+
+  /* Avatar Animation */
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .avatar-animate {
+    animation: bounce 1.2s infinite alternate;
+  }
+
+  /* Enhanced Correct Answer Pop-in */
+  @keyframes popIn {
+    0% { transform: scale(0.7); opacity: 0; }
+    80% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  .correct-popup {
+    animation: popIn 0.4s ease-out forwards;
+  }
+
+  /* Typing Indicator */
+  .typing-indicator span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: #475569;
+    border-radius: 50%;
+    margin: 0 3px;
+    animation: typing 0.8s infinite ease-in-out;
+  }
+  .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Scrollbar for Explanation Area */
+  .explanation-scroll-area {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 12px;
+  }
+  .explanation-scroll-area::-webkit-scrollbar {
+    width: 10px;
+    border-radius: 5px;
+  }
+  .explanation-scroll-area::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 5px;
+  }
+  .explanation-scroll-area::-webkit-scrollbar-thumb {
+    background: #a5b4fc;
+    border-radius: 5px;
+  }
+  .explanation-scroll-area::-webkit-scrollbar-thumb:hover {
+    background: #818cf8;
+  }
+
+  /* Progress Bar Animation */
+  .progress-bar {
+    height: 10px;
+    background-color: #e5e7eb;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background-color: #4f46e5;
+    animation: fillProgress 2.5s infinite linear;
+    border-radius: 5px;
+  }
+  @keyframes fillProgress {
+    0% { width: 0%; }
+    100% { width: 100%; }
+  }
+
+  /* Enhanced Button Styles */
+  .btn-primary {
+    background-color: #6366f1;
+    color: white;
+    padding: 0.75rem 1.75rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+  }
+  .btn-primary:hover {
+    background-color: #4f46e5;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(99, 102, 241, 0.4);
+  }
+  .btn-secondary {
+    background-color: #e5e7eb;
+    color: #1e293b;
+    padding: 0.75rem 1.75rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  .btn-secondary:hover {
+    background-color: #d1d5db;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  }
+  .btn-primary:focus-visible {
+  outline: 3px solid #6366f1;
+  outline-offset: 2px;
+}
+
+  /* Custom Select with Improved Styling */
+  .custom-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.25em;
+    padding-right: 3rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+  .custom-select:focus {
+    ring: 4px;
+    ring-color: #4f46e5;
+    border-color: #4f46e5;
+  }
+
+  /* Mobile Responsive Adjustments */
+  @media (max-width: 768px) {
+    .min-h-screen {
+      padding: 1rem;
+    }
+    h1 {
+      font-size: 2.5rem;
+    }
+    .chat-bubble {
+      margin-left: 0.5rem;
+      padding: 1rem 1.5rem;
+    }
+    .chat-bubble::before {
+      left: -8px;
+      border-right-width: 8px;
+    }
+    .btn-primary, .btn-secondary {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+    .explanation-scroll-area {
+      max-height: 400px;
+    }
+    .speech-popup {
+      padding: 1rem 1.5rem;
+      font-size: 0.9rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    h1 {
+      font-size: 2rem;
+    }
+    .chat-bubble {
+      padding: 0.75rem 1rem;
+    }
+    .btn-primary, .btn-secondary {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+    }
+  }
+
+  /* Tooltip Styling */
+  .tooltip {
+    position: relative;
+    display: inline-block;
+  }
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: #1e293b;
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 8px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* Lottie Animation Container - Hide to remove top visuals */
+  .lottie-container {
+    display: none;
+  }
+
+  /* Enhanced Table Styling */
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 1rem 1.5rem;
+  }
+  tr:hover {
+    background-color: #f9fafb;
+  }
+
+  /* Enhanced Camera and Cropping UI */
+  .fullscreen-camera {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: black;
+  }
+  .camera-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 15px;
+  }
+  .ocr-progress-bar {
+    width: 100%;
+    height: 12px;
+    background-color: #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 1.5rem;
+  }
+  .ocr-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #34d399, #10b981);
+    width: 0%;
+    transition: width 0.4s ease-in-out;
+  }
+  .capture-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 5px solid white;
+    background: radial-gradient(circle, #ff6b6b 0%, #ef4444 100%);
+    transition: transform 0.2s ease;
+  }
+  .capture-btn:hover {
+    transform: scale(1.1);
+  }
+  .cropper-container-wrapper {
+    position: relative;
+    max-width: 100%;
+    max-height: 500px;
+    margin: 0 auto;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+  .cropper-preview {
+    width: 250px;
+    height: 250px;
+    border: 3px solid #e5e7eb;
+    border-radius: 15px;
+    overflow: hidden;
+    margin: 1.5rem auto;
+  }
+  .cropper-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    border-radius: mets0 0 15px 15px;
+  }
+  /* Pulsating Microphone Animation */
+  .mic-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mic-button.active::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+    animation: pulse 1.5s ease-in-out infinite;
+    z-index: -1;
+  }
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    50% {
+      transform: scale(1.5);
+      opacity: 0.3;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+  }
+
+  /* Dialogue Box for Speech */
+  .speech-dialogue {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #fefcbf, #a3bffa);
+    border: 3px solid #3b82f6;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem;
+    font-family: 'Comic Neue', cursive;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e40af;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.5s ease-out forwards;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 10001;
+  }
+  @keyframes slideIn {
+    0% {
+      transform: translateX(-50%) translateY(-50px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  }
+  .speech-dialogue.hide {
+    animation: slideOut 0.5s ease-in forwards;
+  }
+  @keyframes slideOut {
+    0% {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-50%) translateY(-50px);
+      opacity: 0;
+    }
+  }
+  .speech-dialogue svg {
+    animation: bounce 1s infinite alternate;
+  }
+  @media (max-width: 768px) {
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem !important;
+    height: auto !important;
+    position: static !important;
+  }
+
+  .left-section,
+  .right-section {
+    position: static !important;
+    width: 100% !important;
+    padding: 1rem !important;
+    margin-bottom: 1.5rem;
+  }
+
+  .left-section {
+    order: 1;
+  }
+
+  .right-section {
+    order: 2;
+  }
+
+  .ocr-title {
+    font-size: 1.25rem !important;
+    text-align: center;
+  }
+
+  .dropdowns-container {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .action-buttons {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  canvas,
+  #cropped-preview {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+  
+ </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="speechPopup" class="speech-popup hidden">🎤 Speak now…</div>
+
+  <script>
+    // Ensure speechPopupRef is available globally for the React component
+    window.addEventListener('DOMContentLoaded', () => {
+      window.speechPopupRef = document.getElementById('speechPopup');
+    });
+  </script>
+
+  <script type="text/babel">
+    window.onload = function() {
+  // No Framer Motion, so define plain components
+  const MotionH1 = 'h1';
+  const MotionDiv = 'div';
+  const MotionButton = 'button';
+  const MotionSpan = 'span';
+
+  const { useState, useEffect, useRef, useMemo } = React;
+
+  const API_BASE_URL = 'http://localhost:5000/api'; // Update for local/mobile testing https://05455561e62d.ngrok-free.app // http://localhost:5000/api'
+
+  // Helper function for depth instructions
+  const getDepthInstructions = (grade) => {
+    if (['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(grade)) {
+      return {
+        greeting: "Hello little champions! 🌟",
+        sections: ["Simple Definition", "Fun Examples", "Cool Fact"],
+        instructions: "Use only very basic concepts. Give 2 super simple examples from daily life that a child would understand. No technical terms.",
+        exampleCount: 2
+      };
+    } else if (['Class 6', 'Class 7', 'Class 8'].includes(grade)) {
+      return {
+        greeting: "Hello young learners! 🚀",
+        sections: ["Definition", "Explanation", "Examples", "Did You Know?"],
+        instructions: "Introduce simple technical terms with easy explanations. Provide 2-3 relatable examples. Include one interesting fact.",
+        exampleCount: 3
+      };
+    } else {
+      return {
+        greeting: "Hello students! 📚",
+        sections: ["Scientific Definition", "Detailed Explanation", "Real-World Applications", "Key Concepts"],
+        instructions: "Include proper technical terms and formulas (mark them **bold**). Explain concepts thoroughly with 3-4 real-world applications. Connect to fundamental principles.",
+        exampleCount: 4
+      };
+    }
+  };
+
+  // Parse explanation function
+  const parseExplanation = (explanationHtml, currentGrade) => {
+    const sections = [];
+    const expectedSectionTitles = getDepthInstructions(currentGrade).sections;
+    const headerRegex = new RegExp(`<strong>(${expectedSectionTitles.map(title => title.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')}):<\\/strong>`, 'gi');
+
+    const matches = [...explanationHtml.matchAll(headerRegex)];
+    let currentContent = explanationHtml;
+
+    if (matches.length > 0 && matches[0].index > 0) {
+      const introContent = explanationHtml.substring(0, matches[0].index).trim();
+      if (introContent) {
+        sections.push({
+          type: 'Introduction',
+          content: introContent.replace(/^(<br\/?>\s*)+/, '').replace(/(\s*<br\/?>)+$/, '')
+        });
+      }
+      currentContent = explanationHtml.substring(matches[0].index);
+    } else if (matches.length === 0 && explanationHtml.length > 0) {
+      sections.push({
+        type: 'Explanation',
+        content: explanationHtml.replace(/^(<br\/?>\s*)+/, '').replace(/(\s*<br\/?>)+$/, '')
+      });
+      return sections;
+    }
+
+    const reMatches = [...currentContent.matchAll(headerRegex)];
+    for (let i = 0; i < reMatches.length; i++) {
+      const match = reMatches[i];
+      const sectionType = match[1].trim();
+      const contentStartIndex = match.index + match[0].length;
+      let contentEndIndex = i + 1 < reMatches.length ? reMatches[i + 1].index : currentContent.length;
+      let content = currentContent.substring(contentStartIndex, contentEndIndex).trim();
+      content = content.replace(/^(<br\/?>\s*)+/, '').replace(/(\s*<br\/?>)+$/, '');
+      sections.push({ type: sectionType, content });
+    }
+    return sections;
+  };
+
+  const App = () => {
+    // Authentication State
+    const [currentUser, setCurrentUser] = useState(null);
+    const [currentView, setCurrentView] = useState('tutor');
+
+    useEffect(() => {
+      const token = localStorage.getItem('token');
+      const userString = localStorage.getItem('user');
+
+      if (!token || !userString) {
+        window.location.href = '/';
+        return;
+      }
+
+      try {
+        const user = JSON.parse(userString);
+        setCurrentUser(user);
+        if (user?.role) setRole(user.role);
+        if (user?.role === 'Student' && user?.class) setGrade(user.class);
+      } catch (e) {
+        console.error("Failed to parse user data from localStorage:", e);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
+    }, []);
+
+    // Existing States
+    const [searchTerm, setSearchTerm] = useState('');
+    const [question, setQuestion] = useState('');
+    const [grade, setGrade] = useState('Class 6');
+    const [language, setLanguage] = useState('English');
+    const [role, setRole] = useState('Student');
+    const [explanation, setExplanation] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showQuizOption, setShowQuizOption] = useState(false);
+    const [showQuiz, setShowQuiz] = useState(false);
+    const [quizQuestions, setQuizQuestions] = useState([]);
+    const [userAnswers, setUserAnswers] = useState({});
+    const [quizResults, setQuizResults] = useState(null);
+    const [showCorrectPopup, setShowCorrectPopup] = useState({});
+    const [speaking, setSpeaking] = useState(false);
+    const [showCamera, setShowCamera] = useState(false);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [isCropping, setIsCropping] = useState(false);
+    const [isStreamActive, setIsStreamActive] = useState(false);
+    const [ocrProgress, setOcrProgress] = useState(0);
+    const [showOcrProgress, setShowOcrProgress] = useState(false);
+    const [showSpeechDialogue, setShowSpeechDialogue] = useState(false);
+
+    // Progress View States
+    const [studentActivities, setStudentActivities] = useState([]);
+    const [loadingActivities, setLoadingActivities] = useState(false);
+    const [personalizedPlan, setPersonalizedPlan] = useState('');
+    const [loadingPlan, setLoadingPlan] = useState(false);
+    const [weakTopics, setWeakTopics] = useState([]);
+
+    const speechPopupRef = useRef(null);
+    const recognitionRef = useRef(null);
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const cropperRef = useRef(null);
+    const micButtonRef = useRef(null);
+
+    // Audio Effects
+    const playSound = (type) => {
+      let audio;
+      switch (type) {
+        case 'correct':
+          audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
+          break;
+        case 'incorrect':
+          audio = new Audio('https://www.soundjay.com/buttons/beep-08a.mp3');
+          break;
+        case 'generate':
+          audio = new Audio('https://www.soundjay.com/misc/magic-chime-01.mp3');
+          break;
+        default:
+          return;
+      }
+      audio.play().catch(e => console.error("Error playing sound:", e));
+    };
+
+    // Confetti Effect for Correct Answers
+    const triggerConfetti = () => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#6366f1', '#facc15', '#10b981', '#f43f5e']
+      });
+    };
+
+    // Speech Recognition Setup
+    useEffect(() => {
+      if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = true; // Enable interim results for real-time updates
+
+        recognitionRef.current.onstart = () => {
+          setSpeaking(true);
+          setShowSpeechDialogue(true);
+          if (micButtonRef.current) {
+            micButtonRef.current.classList.add('active');
+          }
+        };
+        recognitionRef.current.onend = () => {
+          setSpeaking(false);
+          setShowSpeechDialogue(false);
+          if (micButtonRef.current) {
+            micButtonRef.current.classList.remove('active');
+          }
+        };
+        recognitionRef.current.onresult = (event) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          setSearchTerm(finalTranscript || interimTranscript);
+          if (finalTranscript) {
+            console.log("Final speech transcript captured:", finalTranscript);
+          }
+        };
+        recognitionRef.current.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          setSpeaking(false);
+          setShowSpeechDialogue(false);
+          if (micButtonRef.current) {
+            micButtonRef.current.classList.remove('active');
+          }
+          showCustomAlert('Speech Recognition Error', 'Please ensure microphone access is granted. Error: ' + event.error);
+        };
+      }
+    }, []);
+
+    // Custom Alert/Confirmation Modal
+    const showCustomAlert = (title, message, isConfirm = false, onConfirm = () => {}, onCancel = () => {}) => {
+      const modalId = 'customModal';
+      let modal = document.getElementById(modalId);
+
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] p-4';
+        modal.innerHTML = `
+          <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full transform scale-95 opacity-0 transition-all duration-300 ease-out" id="customModalContent">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4 playful-text" id="customModalTitle"></h3>
+            <p className="text-gray-700 mb-6" id="customModalMessage"></p>
+            <div className="flex justify-end space-x-4" id="customModalActions"></div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      document.getElementById('customModalTitle').innerText = title;
+      document.getElementById('customModalMessage').innerText = message;
+      const actionsDiv = document.getElementById('customModalActions');
+      actionsDiv.innerHTML = '';
+
+      const createButton = (text, classes, onClick) => {
+        const button = document.createElement('button');
+        button.innerText = text;
+        button.className = `px-5 py-2.5 rounded-lg font-semibold transition-all duration-200 ${classes}`;
+        button.onclick = () => {
+          onClick();
+          modal.classList.remove('flex');
+          modal.classList.add('hidden');
+          document.getElementById('customModalContent').classList.remove('scale-100', 'opacity-100');
+          document.getElementById('customModalContent').classList.add('scale-95', 'opacity-0');
+        };
+        return button;
+      };
+
+      if (isConfirm) {
+        actionsDiv.appendChild(createButton('Cancel', 'btn-secondary', onCancel));
+        actionsDiv.appendChild(createButton('Confirm', 'btn-primary', onConfirm));
+      } else {
+        actionsDiv.appendChild(createButton('OK', 'btn-primary', onConfirm));
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => {
+        document.getElementById('customModalContent').classList.remove('scale-95', 'opacity-0');
+        document.getElementById('customModalContent').classList.add('scale-100', 'opacity-100');
+      }, 10);
+    };
+
+    const startSpeechRecognition = () => {
+      if (recognitionRef.current) {
+        setSearchTerm('');
+        recognitionRef.current.start();
+      } else {
+        showCustomAlert('Browser Not Supported', 'Speech recognition not supported in this browser.');
+      }
+    };
+
+    const startCamera = async () => {
+      console.log("📷 startCamera() called");
+      try {
+        setShowCamera(true);
+        setIsStreamActive(false);
+
+        const constraints = {
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("🎥 Camera stream acquired.");
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(err => {
+            console.error("Video play error:", err);
+            throw new Error("Failed to play video stream: " + err.message);
+          });
+          console.log("🎥 Camera stream started.");
+        } else {
+          throw new Error("Video element not found.");
+        }
+      } catch (error) {
+        console.error("Camera error:", error);
+        setShowCamera(false);
+        showCustomAlert("Camera Error", error.message);
+      }
+    };
+
+    useEffect(() => {
+      if (showCamera && videoRef.current) {
+        const video = videoRef.current;
+        const handleStreamReady = () => {
+          console.log("🎥 Video stream is ready (playing)");
+          setIsStreamActive(true);
+        };
+
+        video.addEventListener('playing', handleStreamReady);
+        video.addEventListener('loadedmetadata', () => {
+          console.log("🎥 Video metadata loaded");
+          if (videoRef.current?.srcObject?.active) {
+            setIsStreamActive(true);
+          }
+        });
+
+        return () => {
+          video.removeEventListener('playing', handleStreamReady);
+          video.removeEventListener('loadedmetadata', handleStreamReady);
+          if (video.srcObject) {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+            console.log("📷 Camera stream stopped.");
+            setIsStreamActive(false);
+          }
+        };
+      }
+    }, [showCamera]);
+
+    const captureImage = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      setCapturedImage(dataUrl);
+      setIsCropping(true);
+      setShowCamera(false);
+      const stream = video.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    };
+
+    useEffect(() => {
+      if (capturedImage && isCropping) {
+        const img = document.getElementById('captured');
+        if (cropperRef.current) cropperRef.current.destroy();
+        cropperRef.current = new Cropper(img, {
+          aspectRatio: 0,
+          viewMode: 1,
+          autoCropArea: 0.8,
+          responsive: true,
+          zoomable: true,
+          movable: true,
+          scalable: true,
+          preview: '.cropper-preview',
+          background: false,
+          guides: true,
+          center: true,
+          highlight: true,
+        });
+      }
+      return () => {
+        if (cropperRef.current) cropperRef.current.destroy();
+      };
+    }, [capturedImage, isCropping]);
+
+    const handleCropAndOCR = async () => {
+  if (!cropperRef.current) return;
+
+  const croppedCanvas = cropperRef.current.getCroppedCanvas({
+    maxWidth: 800,
+    maxHeight: 800,
+  });
+
+  const imageData = croppedCanvas.toDataURL('image/jpeg', 0.9);
+
+  // Validate cropped image (non-empty area)
+  const context = croppedCanvas.getContext('2d');
+  const imageDataArray = context.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height).data;
+  const hasContent = imageDataArray.some(pixel => pixel !== 0);
+  if (!hasContent) {
+    showCustomAlert('OCR Error', 'The cropped area appears empty. Please adjust the crop to include text.');
+    return;
+  }
+
+  if (croppedCanvas.width < 10 || croppedCanvas.height < 10) {
+    showCustomAlert('OCR Error', 'Selected crop is too small. Please crop a larger portion of the image.');
+    return;
+  }
+
+  setLoading(true);
+  setShowOcrProgress(true);
+  setOcrProgress(0);
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showCustomAlert('Authentication Error', 'You must be logged in to use OCR.');
+    setLoading(false);
+    setShowOcrProgress(false);
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/ocr`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ image: imageData })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'OCR failed.');
+    }
+
+    if (result?.text) {
+      setSearchTerm(result.text);     
+    } else {
+      showCustomAlert('OCR Error', result.error || 'No text recognized.');
+    }
+
+    setIsCropping(false);
+    setCapturedImage(null);
+  } catch (error) {
+    console.error('OCR Error:', error.message);
+    showCustomAlert('OCR Error', `Failed to extract text. Ensure clear text and good lighting. Error: ${error.message}`);
+  } finally {
+    setLoading(false);
+    setShowOcrProgress(false);
+    setOcrProgress(0);
+  }
+};
+
+    const parseSearchInput = (input) => {
+      let currentQuestion = input;
+      let currentGrade = grade;
+      let currentLanguage = language;
+
+      const gradeMatch = input.match(/(class|grade|std)\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)|(\d+)(?:th|nd|rd|st)\s*class/i);
+      if (gradeMatch) {
+        let num = gradeMatch[2] || gradeMatch[3];
+        if (typeof num === 'string') {
+          const numberWords = {'one':1, 'two':2, 'three':3, 'four':4, 'five':5, 'six':6, 'seven':7, 'eight':8, 'nine':9, 'ten':10, 'eleven':11, 'twelve':12};
+          num = numberWords[num.toLowerCase()] || parseInt(num);
+        }
+        if (num >= 1 && num <= 12) {
+          currentGrade = `Class ${num}`;
+          currentQuestion = currentQuestion.replace(gradeMatch[0], '').trim();
+        }
+      }
+
+      const langMap = {
+        'english': 'English', 'hindi': 'Hindi', 'gujarati': 'Gujarati',
+        'kannada': 'Kannada', 'tamil': 'Tamil', 'telugu': 'Telugu', 'marathi': 'Marathi'
+      };
+      const langRegex = new RegExp(`in\\s*(${Object.keys(langMap).join('|')})\\s*|(${Object.keys(langMap).join('|')})\\s*(me|explanation)`, 'i');
+      const langMatch = currentQuestion.match(langRegex);
+      if (langMatch) {
+        const matchedLang = (langMatch[1] || langMatch[2]).toLowerCase();
+        if (langMap[matchedLang]) {
+          currentLanguage = langMap[matchedLang];
+          currentQuestion = currentQuestion.replace(langMatch[0], '').trim();
+        }
+      }
+
+      currentQuestion = currentQuestion
+        .replace(/(explain|what is|tell me about|define|meaning of)\s*/i, '')
+        .trim();
+
+      return { parsedQuestion: currentQuestion, parsedGrade: currentGrade, parsedLanguage: currentLanguage };
+    };
+
+    const handleSearchTermChange = (e) => {
+      setSearchTerm(e.target.value);
+    };
+
+    const handleExplainTopic = async (inputFromSource = null) => {
+      const inputToParse = inputFromSource || searchTerm;
+
+      if (!inputToParse) {
+        showCustomAlert('Input Required', 'Please enter a question or topic.');
+        return;
+      }
+
+      const { parsedQuestion, parsedGrade, parsedLanguage } = parseSearchInput(inputToParse);
+
+      setQuestion(parsedQuestion);
+      setGrade(parsedGrade);
+      setLanguage(parsedLanguage);
+
+      setLoading(true);
+      setExplanation('');
+      setQuizQuestions([]);
+      setQuizResults(null);
+      setShowQuiz(false);
+      setShowQuizOption(false);
+
+      try {
+        const response = await axios.post(`${API_BASE_URL}/explain`, {
+          question: parsedQuestion,
+          grade: parsedGrade,
+          language: parsedLanguage,
+          role,
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (response.data.error) {
+          showCustomAlert('API Error', response.data.error);
+        } else {
+          setExplanation(response.data.explanation);
+          setShowQuizOption(true);
+          playSound('generate');
+        }
+      } catch (error) {
+        console.error('Error explaining topic:', error.response ? error.response.data : error.message);
+        showCustomAlert('Error', error.response?.data?.error || 'Failed to generate explanation. Please check your backend server and try again.');
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          handleLogout();
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleGenerateQuiz = async () => {
+      if (!explanation || !question) {
+        showCustomAlert('Missing Explanation', 'Please get an explanation first to generate a quiz.');
+        return;
+      }
+      setLoading(true);
+      setQuizQuestions([]);
+      setUserAnswers({});
+      setQuizResults(null);
+      setShowQuiz(true);
+
+      try {
+        const response = await axios.post(`${API_BASE_URL}/quiz`, {
+          question: question,
+          explanation: explanation.replace(/<br\/>/g, '\n'),
+          grade,
+          language,
+          role,
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (response.data.error) {
+          showCustomAlert('API Error', response.data.error);
+          setQuizQuestions([]);
+        } else {
+          setQuizQuestions(response.data.questions);
+          playSound('generate');
+        }
+      } catch (error) {
+        console.error('Error generating quiz:', error.response ? error.response.data : error.message);
+        const mockQuiz = [
+          {
+            question: `What is ${question}? (Mock Data)`,
+            options: ['A sample answer 1', 'A sample answer 2*', 'A sample answer 3', 'A sample answer 4'],
+            correctAnswer: 'A sample answer 2*',
+          },
+          {
+            question: `What is a key feature of ${question}? (Mock Data)`,
+            options: ['Feature A*', 'Feature B', 'Feature C', 'Feature D'],
+            correctAnswer: 'Feature A*',
+          },
+        ];
+        setQuizQuestions(mockQuiz.map(q => ({
+          ...q,
+          correctAnswer: q.correctAnswer.replace('*', '').trim()
+        })));
+        showCustomAlert('Quiz Generation', 'Using mock quiz data since the backend /api/quiz endpoint failed. Please check your backend server and try again.');
+        playSound('generate');
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          handleLogout();
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleAnswerChange = (qIndex, option) => {
+      setUserAnswers(prev => ({ ...prev, [qIndex]: option }));
+    };
+
+    const handleCheckQuiz = async () => {
+      if (quizQuestions.length === 0) return;
+
+      const allAnswered = quizQuestions.every((_, index) => userAnswers[index]);
+      if (!allAnswered) {
+        showCustomAlert('Incomplete Quiz', 'Please answer all questions before checking.');
+        return;
+      }
+
+      let correctCount = 0;
+      const results = quizQuestions.map((q, index) => {
+        const isCorrect = userAnswers[index] === q.correctAnswer;
+        if (isCorrect) {
+          correctCount++;
+          triggerConfetti();
+        }
+        return { questionIndex: index, isCorrect, userAnswer: userAnswers[index], correctAnswer: q.correctAnswer };
+      });
+      setQuizResults(results);
+
+      const newShowCorrectPopup = {};
+      results.forEach((result, index) => {
+        newShowCorrectPopup[index] = result.isCorrect;
+        if (result.isCorrect) {
+          playSound('correct');
+        } else {
+          playSound('incorrect');
+        }
+      });
+      setShowCorrectPopup(newShowCorrectPopup);
+
+      try {
+        await axios.post(`${API_BASE_URL}/save-activity`, {
+          question,
+          grade,
+          language,
+          quiz_score: correctCount,
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        console.log('Quiz activity saved successfully!');
+      } catch (error) {
+        console.error('Error saving quiz activity:', error.response ? error.response.data : error.message);
+        showCustomAlert('Data Save Error', 'Failed to save quiz performance. Please try again.');
+      }
+    };
+
+    const handleLogout = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    };
+
+    const parsedExplanationSections = useMemo(() => {
+      return explanation ? parseExplanation(explanation, grade) : [];
+    }, [explanation, grade]);
+
+    // Enhanced Tutor Avatar with Lottie Animation
+    const TutorAvatar = ({ isSpeaking, isLoading }) => {
+      const lottieRef = useRef(null);
+
+      useEffect(() => {
+        if (lottieRef.current) {
+          const animation = lottieRef.current;
+          if (isLoading) {
+            animation.play();
+          } else if (isSpeaking) {
+            animation.play();
+          } else {
+            animation.pause();
+          }
+        }
+      }, [isSpeaking, isLoading]);
+
+      return (
+        <MotionDiv className="relative w-28 h-28 min-w-[112px] min-h-[112px] rounded-full shadow-lg overflow-hidden">
+          <lottie-player
+            ref={lottieRef}
+            src="https://assets.lottiefiles.com/packages/lf20_8q3aw9.json"
+            background="transparent"
+            speed="1"
+            loop
+            style={{ width: '100%', height: '100%' }}
+          ></lottie-player>
+          {showOcrProgress && (
+            <div className="ocr-progress-bar mt-2">
+              <div className="ocr-progress-fill" style={{ width: `${ocrProgress}%` }}></div>
+              <p className="text-center text-sm text-gray-600 mt-1">{ocrProgress}%</p>
+            </div>
+          )}
+        </MotionDiv>
+      );
+    };
+
+    // Fetch Student Activities
+    useEffect(() => {
+      if (currentView === 'progress' && currentUser) {
+        const fetchActivities = async () => {
+          setLoadingActivities(true);
+          try {
+            const response = await axios.get(`${API_BASE_URL}/student-activities`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            setStudentActivities(response.data.activities);
+
+            const topicScores = {};
+            response.data.activities.forEach(activity => {
+              if (!topicScores[activity.question]) {
+                topicScores[activity.question] = { totalScore: 0, count: 0 };
+              }
+              topicScores[activity.question].totalScore += activity.quiz_score;
+              topicScores[activity.question].count += 1;
+            });
+
+            const identifiedWeakTopics = [];
+            for (const topic in topicScores) {
+              const avgScore = topicScores[topic].totalScore / topicScores[topic].count;
+              if (avgScore <= 2) {
+                identifiedWeakTopics.push({
+                  question: topic,
+                  score: Math.round(avgScore)
+                });
+              }
+            }
+            setWeakTopics(identifiedWeakTopics);
+          } catch (error) {
+            console.error('Error fetching student activities:', error.response ? error.response.data : error.message);
+            showCustomAlert('Error', 'Failed to load your activities. Please try again.');
+            if (error.response?.status === 401 || error.response?.status === 403) {
+              handleLogout();
+            }
+          } finally {
+            setLoadingActivities(false);
+          }
+        };
+        fetchActivities();
+      }
+    }, [currentView, currentUser]);
+
+    // Generate Personalized Plan
+    const handleGeneratePersonalizedPlan = async () => {
+      if (!currentUser || weakTopics.length === 0) {
+        showCustomAlert('No Weak Areas', 'You currently have no identified weak areas based on your quiz performance, or no activities recorded.');
+        return;
+      }
+
+      setLoadingPlan(true);
+      setPersonalizedPlan('');
+      try {
+        const response = await axios.post(`${API_BASE_URL}/personalized-plan`, {
+          language,
+          grade: currentUser.class || grade
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.data.error) {
+          showCustomAlert('API Error', response.data.error);
+        } else {
+          setPersonalizedPlan(response.data.personalizedPlan);
+        }
+      } catch (error) {
+        console.error('Error generating personalized plan:', error.response ? error.response.data : error.message);
+        showCustomAlert('Error', error.response?.data?.error || 'Failed to generate personalized plan. Please try again.');
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          handleLogout();
+        }
+      } finally {
+        setLoadingPlan(false);
+      }
+    };
+
+    if (!currentUser) return null;
+
+    return (
+      <div className="min-h-screen animated-gradient-bg p-4 md:p-6 flex flex-col items-center relative">
+        
+        <MotionH1
+          className="text-4xl md:text-5xl font-extrabold text-gray-800 mb-8 md:mb-10 text-center drop-shadow-lg playful-text"
+        >
+          🎓 Mentoro <span className="text-indigo-600">AI</span>
+        </MotionH1>
+
+        <MotionDiv
+          className="w-full max-w-6xl bg-white shadow-2xl rounded-3xl p-6 md:p-8 space-y-6 md:space-y-8 border border-gray-100"
+        >
+          {/* User Info and Logout */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 playful-text">
+              Welcome, {currentUser.username} ({currentUser.role}{currentUser.class ? ` - ${currentUser.class}` : ''})
+            </h2>
+            <button
+              onClick={handleLogout}
+              className="btn-secondary text-sm py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all"
+            >
+              Logout
+            </button>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex justify-center mb-6 md:mb-8 space-x-2 md:space-x-4">
+            <button
+              onClick={() => setCurrentView('tutor')}
+              className={`px-4 py-2 md:px-6 md:py-3 rounded-xl text-base md:text-lg font-semibold transition-all duration-300 ${currentView === 'tutor' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              AI Tutor
+            </button>
+            <button
+              onClick={() => setCurrentView('progress')}
+              className={`px-4 py-2 md:px-6 md:py-3 rounded-xl text-base md:text-lg font-semibold transition-all duration-300 ${currentView === 'progress' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              My Progress
+            </button>
+          </div>
+
+          {currentView === 'tutor' && (
+            <>
+              {/* Speech Dialogue Box */}
+              {showSpeechDialogue && (
+                <MotionDiv className={`speech-dialogue ${!speaking ? 'hide' : ''}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span>Please speak your doubt, I am listening</span>
+                </MotionDiv>
+              )}
+
+              {/* Search Bar */}
+              <div className="flex items-center space-x-2 md:space-x-3 mb-6">
+                <div className="tooltip flex-grow">
+                  <textarea
+					value={searchTerm}
+					onChange={handleSearchTermChange}
+					onKeyDown={(e) => {
+								if (e.key === 'Enter' && !e.shiftKey) {
+								e.preventDefault(); // Prevent form submission
+								handleExplainTopic(searchTerm); // Trigger explanation on Enter
+								} else if (e.key === 'Enter' && e.shiftKey) {
+								e.preventDefault(); // Prevent default Enter behavior
+								setSearchTerm(prev => prev + '\n'); // Add newline with Shift+Enter
+									}
+  }}
+					placeholder="Ask anything (e.g., 'Photosynthesis in Class 7 Hindi')\nType or speak multiple lines here!"
+					className="w-full flex-grow p-5 md:p-6 border border-gray-300 rounded-2xl text-gray-800 bg-blue-50 focus:ring-4 focus:ring-indigo-300 focus:border-transparent transition duration-300 text-base md:text-lg shadow-sm h-24 md:h-32 resize-y"
+                  />
+                  <span className="tooltiptext">Type or speak your question!</span>
+                </div>
+                <MotionButton
+                  ref={micButtonRef}
+                  onClick={startSpeechRecognition}
+                  className={`mic-button p-3 md:p-4 bg-blue-200 text-blue-700 rounded-full hover:bg-blue-300 shadow-lg transform hover:scale-110 transition duration-200 border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 tooltip ${speaking ? 'active' : ''}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span className="tooltiptext">Speak your question</span>
+                </MotionButton>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+                <MotionDiv>
+                  <label htmlFor="grade" className="block text-gray-700 text-sm md:text-base font-semibold mb-2 playful-text">Class/Grade: 🧑‍🎓</label>
+                  <select
+                    id="grade"
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    className="custom-select block w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
+                    disabled={currentUser.role === 'Student' && currentUser.class}
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={`Class ${i + 1}`}>{`Class ${i + 1}`}</option>
+                    ))}
+                  </select>
+                </MotionDiv>
+
+                <MotionDiv>
+                  <label htmlFor="role" className="block text-gray-700 text-sm md:text-base font-semibold mb-2 playful-text">Role: 🎭</label>
+                  <select
+                    id="role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="custom-select block w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
+                    disabled={currentUser.role !== 'Student'}
+                  >
+                    <option value="Student">Student</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Parent">Parent</option>
+                  </select>
+                </MotionDiv>
+
+                <MotionDiv>
+                  <label className="block text-gray-700 text-sm md:text-base font-semibold mb-2 playful-text">Language: 🗣️</label>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2 p-2 bg-white rounded-xl border border-gray-300 shadow-sm">
+                    {['English', 'Hindi', 'Gujarati'].map(lang => (
+                      <label key={lang} className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          className="form-radio h-4 w-4 md:h-5 md:w-5 text-indigo-600 focus:ring-indigo-500"
+                          name="language"
+                          value={lang}
+                          checked={language === lang}
+                          onChange={(e) => setLanguage(e.target.value)}
+                        />
+                        <span className="ml-2 text-gray-700 font-medium text-sm md:text-base">{lang}</span>
+                      </label>
+                    ))}
+                  </div>
+                </MotionDiv>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-5 mb-6 md:mb-8">
+                <MotionButton
+                  className="flex-1 p-3 md:p-4 btn-primary flex items-center justify-center space-x-2 tooltip"
+                  onClick={startCamera}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>Scan or Upload Image</span>
+                  <span className="tooltiptext">Capture or upload a question</span>
+                </MotionButton>
+                <MotionButton
+                  onClick={() => handleExplainTopic(searchTerm)}
+                  className="flex-1 p-3 md:p-4 btn-primary flex items-center justify-center space-x-2 tooltip"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="typing-indicator"><span></span><span></span><span></span></span>
+                      <span>Thinking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                      </svg>
+                      <span>Get Explanation</span>
+                      <span className="tooltiptext">Get a detailed explanation</span>
+                    </>
+                  )}
+                </MotionButton>
+              </div>
+
+              {/* Camera and Cropping UI */}
+              {showCamera && (
+                <div className="fullscreen-camera flex flex-col">
+                  <div className="absolute top-4 left-4 right-4 text-white text-xs md:text-sm bg-black bg-opacity-50 p-3 rounded-lg">
+                    <p>📸 Tip: Ensure good lighting and focus on the text for better text extraction.</p>
+                  </div>
+                  <div className="flex-1 relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error("Video element error:", e);
+                        showCustomAlert("Video Error", "Failed to display camera feed.");
+                      }}
+                    />
+                    {!isStreamActive && (
+                      <div className="absolute inset-0 flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                          <p>Initializing camera...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="camera-controls">
+                    <button
+                      onClick={() => setShowCamera(false)}
+                      className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                    >
+                      ✕
+                    </button>
+                    <button
+                      onClick={captureImage}
+                      className="capture-btn"
+                      disabled={!isStreamActive}
+                    ></button>
+                    <label className="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setCapturedImage(event.target.result);
+                              setIsCropping(true);
+                              setShowCamera(false);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      📁
+                    </label>
+                  </div>
+                </div>
+              )}
+              {isCropping && capturedImage && (
+                <MotionDiv className="mt-6 bg-gray-100 p-6 rounded-xl shadow-inner border border-gray-200">
+                  <p className="text-gray-700 font-semibold mb-4 playful-text">Adjust the crop area to focus on the text or formulas.</p>
+                  <div className="cropper-container-wrapper">
+                    <img id="captured" src={capturedImage} alt="Captured for cropping" className="max-w-full" />
+                  </div>
+                  <div className="cropper-preview"></div>
+                  <div className="cropper-controls">
+                    <MotionButton
+                      onClick={() => cropperRef.current.zoom(0.1)}
+                      className="p-3 btn-primary"
+                    >
+                      🔍 Zoom In
+                    </MotionButton>
+                    <MotionButton
+                      onClick={() => cropperRef.current.zoom(-0.1)}
+                      className="p-3 btn-primary"
+                    >
+                      🔎 Zoom Out
+                    </MotionButton>
+                    <MotionButton
+                      onClick={() => cropperRef.current.reset()}
+                      className="p-3 btn-secondary"
+                    >
+                      🔄 Reset
+                    </MotionButton>
+                    <MotionButton
+                      onClick={handleCropAndOCR}
+                      className="p-3 btn-primary"
+                      disabled={loading}
+                    >
+                      ✅ Confirm Crop
+                    </MotionButton>
+                  </div>
+                </MotionDiv>
+              )}
+              <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+
+              {/* AI Tutor Avatar and Chat Bubble */}
+              {(loading || explanation) && (
+                <MotionDiv className="mt-8 flex items-start space-x-4 md:space-x-5">
+                  <TutorAvatar isSpeaking={!!explanation && !loading} isLoading={loading} />
+                  <div className="flex-1">
+                    {loading && (
+                      <div className="chat-bubble text-gray-700">
+                        <p className="flex items-center space-x-2">
+                          <span className="typing-indicator"><span></span><span></span><span></span></span>
+                          <span className="playful-text">AI Tutor is thinking...</span>
+                        </p>
+                        <div className="progress-bar mt-3">
+                          <div className="progress-bar-fill"></div>
+                        </div>
+                        {showOcrProgress && (
+                          <div className="ocr-progress-bar mt-3">
+                            <div className="ocr-progress-fill" style={{ width: `${ocrProgress}%` }}></div>
+                            <p className="text-center text-sm text-gray-600 mt-1">{ocrProgress}%</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {explanation && (
+                      <div className="chat-bubble text-gray-700 explanation-scroll-area">
+                        {parsedExplanationSections.map((section, index) => {
+                          if (section.type === 'Introduction' && !section.content.trim()) return null;
+
+                          const iconMap = {
+                            'Scientific Definition': '🧠', 'Detailed Explanation': '🎯', 'Real-World Applications': '💡', 'Key Concepts': '🔑',
+                            'Definition': '🧠', 'Explanation': '🎯', 'Examples': '📝', 'Did You Know?': '✨',
+                            'Simple Definition': '🧠', 'Fun Examples': '🧸', 'Cool Fact': '🌟',
+                            'Introduction': '👋', 'Explanation': '📚'
+                          };
+                          const icon = iconMap[section.type] || '📚';
+
+                          const colorClasses = [
+                            'bg-blue-50 border-blue-200',
+                            'bg-green-50 border-green-200',
+                            'bg-yellow-50 border-yellow-200',
+                            'bg-purple-50 border-purple-200',
+                            'bg-red-50 border-red-200'
+                          ];
+
+                          return (
+                            <MotionDiv
+                              key={index}
+                              className={`mb-4 p-5 rounded-xl shadow-sm border ${colorClasses[index % colorClasses.length]}`}
+                            >
+                              <h4 className="font-bold text-lg md:text-xl text-gray-800 mb-2 flex items-center playful-text">
+                                <span className="mr-3 text-xl md:text-2xl">{icon}</span>
+                                {section.type}
+                              </h4>
+                              <div className="text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: section.content }} />
+                            </MotionDiv>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </MotionDiv>
+              )}
+
+              {/* Quiz Option */}
+              {showQuizOption && explanation && (
+                <MotionDiv className="mt-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 p-5 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="wantQuiz"
+                      checked={showQuiz}
+                      onChange={() => setShowQuiz(!showQuiz)}
+                      className="form-checkbox h-5 w-5 md:h-6 md:w-6 text-indigo-600 rounded-md focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="wantQuiz" className="ml-3 text-base md:text-lg text-gray-700 font-semibold cursor-pointer playful-text">Want a Quiz related to this topic? 🤔</label>
+                  </div>
+                  {showQuiz && (
+                    <MotionButton
+                      onClick={handleGenerateQuiz}
+                      className="md:ml-auto w-full md:w-auto p-3 md:p-4 btn-primary flex items-center justify-center space-x-2"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                          <span className="typing-indicator"><span></span><span></span><span></span></span>
+                          <span>Generating Quiz...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Generate Quiz</span>
+                        </>
+                      )}
+                    </MotionButton>
+                  )}
+                </MotionDiv>
+              )}
+
+              {/* Quiz Section */}
+              {showQuiz && quizQuestions.length > 0 && (
+                <MotionDiv className="mt-8 p-6 md:p-8 bg-emerald-50 rounded-3xl shadow-xl border border-emerald-200">
+                  <h2 className="text-2xl md:text-3xl font-bold text-emerald-700 mb-6 flex items-center playful-text">
+                    <span className="mr-3 text-3xl md:text-4xl">📊</span> Quiz Time! Good luck!
+                  </h2>
+                  {quizQuestions.map((q, qIndex) => (
+                    <MotionDiv
+                      key={qIndex}
+                      className="mb-6 p-5 md:p-6 border border-emerald-200 rounded-xl bg-white shadow-md"
+                    >
+                      <p className="font-semibold text-lg md:text-xl text-gray-800 mb-4">{qIndex + 1}. {q.question}</p>
+                      <div className="space-y-3 md:space-y-4">
+                        {q.options.map((option, oIndex) => (
+                          <label key={oIndex} className="block cursor-pointer flex items-center p-3 rounded-lg hover:bg-emerald-50 transition duration-150 ease-in-out">
+                            <input
+                              type="radio"
+                              name={`question-${qIndex}`}
+                              value={option}
+                              checked={userAnswers[qIndex] === option}
+                              onChange={() => handleAnswerChange(qIndex, option)}
+                              className="form-radio h-4 w-4 md:h-5 md:w-5 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              disabled={quizResults !== null}
+                            />
+                            <span className="ml-3 text-gray-700 text-base md:text-lg">{option}</span>
+                            {quizResults && quizResults[qIndex].isCorrect && userAnswers[qIndex] === option && (
+                              <MotionSpan className="ml-3 text-green-600 font-bold correct-popup flex items-center playful-text">
+                                ✅ Correct!
+                              </MotionSpan>
+                            )}
+                            {quizResults && !quizResults[qIndex].isCorrect && userAnswers[qIndex] === option && (
+                              <MotionSpan className="ml-3 text-red-600 font-bold flex items-center playful-text">
+                                ❌ Incorrect.
+                              </MotionSpan>
+                            )}
+                            {quizResults && !quizResults[qIndex].isCorrect && q.correctAnswer === option && (
+                              <span className="ml-3 text-blue-600 text-sm md:text-base italic">(Correct Answer)</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </MotionDiv>
+                  ))}
+                  <MotionButton
+                    onClick={handleCheckQuiz}
+                    className="w-full p-4 md:p-5 mt-6 btn-primary flex items-center justify-center space-x-2"
+                    disabled={loading || quizResults !== null}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span>Check Answers</span>
+                  </MotionButton>
+                </MotionDiv>
+              )}
+            </>
+          )}
+
+          {/* Progress Section */}
+          {currentView === 'progress' && (
+            <MotionDiv className="mt-8 p-6 md:p-8 bg-blue-50 rounded-3xl shadow-xl border border-blue-200">
+              <h2 className="text-2xl md:text-3xl font-bold text-blue-700 mb-6 flex items-center playful-text">
+                <span className="mr-3 text-3xl md:text-4xl">📈</span> My Learning Progress
+              </h2>
+              {loadingActivities ? (
+                <div className="text-center text-gray-600 playful-text">Loading your activities...</div>
+              ) : studentActivities.length === 0 ? (
+                <div className="text-center text-gray-600 playful-text">No activities recorded yet. Start learning and taking quizzes!</div>
+              ) : (
+                <div>
+                  <div className="mb-8">
+                    <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center playful-text">
+                      <span className="mr-2 text-2xl md:text-3xl">📝</span> Questions Asked & Quiz Scores
+                    </h3>
+                    <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
+                      <table className="min-w-full bg-white">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Topic</th>
+                            <th className="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Class</th>
+                            <th className="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Language</th>
+                            <th className="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Score (Correct/3)</th>
+                            <th className="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {studentActivities.map((activity, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="py-3 px-4 whitespace-nowrap text-gray-800">{activity.question}</td>
+                              <td className="py-3 px-4 whitespace-nowrap text-gray-800">{activity.grade}</td>
+                              <td className="py-3 px-4 whitespace-nowrap text-gray-800">{activity.language}</td>
+                              <td className="py-3 px-4 whitespace-nowrap text-gray-800">{activity.quiz_score}/3</td>
+                              <td className="py-3 px-4 whitespace-nowrap text-gray-600 text-sm">{new Date(activity.timestamp).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center playful-text">
+                      <span className="mr-2 text-2xl md:text-3xl">⚠️</span> My Weak Areas
+                    </h3>
+                    {weakTopics.length === 0 ? (
+                      <div className="text-gray-600 p-4 bg-green-50 border border-green-200 rounded-lg playful-text">
+                        Excellent! You don't currently have any identified weak areas based on your quiz performance. Keep up the great work!
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <ul className="list-disc list-inside space-y-2">
+                          {weakTopics.map((topic, index) => (
+                            <li key={index} className="text-gray-700">
+                              {topic.question} (Average Score: {topic.score}/3)
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center playful-text">
+                      <span className="mr-2 text-2xl md:text-3xl">📚</span> Personalized Learning Plan
+                    </h3>
+                    <MotionButton
+                      onClick={handleGeneratePersonalizedPlan}
+                      className="w-full p-4 md:p-5 btn-primary flex items-center justify-center space-x-2"
+                      disabled={loadingPlan}
+                    >
+                      {loadingPlan ? (
+                        <>
+                          <span className="typing-indicator"><span></span><span></span><span></span></span>
+                          <span>Generating Plan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span>Generate Personalized Plan</span>
+                        </>
+                      )}
+                    </MotionButton>
+                    {personalizedPlan && (
+                      <div className="mt-6 p-6 bg-white rounded-xl shadow-inner border border-gray-200">
+                        <h4 className="text-lg md:text-xl font-semibold text-gray-800 mb-3 playful-text">Your Learning Plan</h4>
+                        <div className="text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: personalizedPlan }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </MotionDiv>
+          )}
+
+          {/* Feedback Section */}
+          <div className="pt-10 text-center border-t border-gray-200 mt-10">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4 flex items-center justify-center">
+              <span className="mr-3 text-3xl">💖</span> Want to help us improve?
+            </h2>
+            <p className="text-gray-600 text-lg">
+              Please <a href="https://forms.gle/YOUR_GOOGLE_FORM_LINK" className="text-blue-600 underline hover:text-blue-800 transition duration-200 font-medium" target="_blank" rel="noopener noreferrer">fill this feedback form</a>. We appreciate your time! 🙏
+            </p>
+          </div>
+        </MotionDiv>
+      </div>
+    );
+  };
+
+  // Use createRoot for React 18
+  const container = document.getElementById('root');
+  const root = ReactDOM.createRoot(container);
+  root.render(<App />);
+};
+  </script>
+</body>
+</html>
