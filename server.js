@@ -859,7 +859,7 @@ function parseQuiz(content) {
 
 // ================== STATIC FILE SERVING & ROUTING ==================
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'auth.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.use('/app', authenticateToken, (req, res, next) => {
@@ -867,7 +867,7 @@ app.use('/app', authenticateToken, (req, res, next) => {
 });
 
 app.get('/app', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'home.html'));
 });
 
 app.use(express.static(path.join(__dirname)));
