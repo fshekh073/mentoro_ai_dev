@@ -37,7 +37,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 // Allow CORS for all origins, methods, and headers.
-app.use(cors({ origin: ['http://127.0.0.1:8080', 'http://localhost:8080'], // Explicitly allow your frontend origins
+app.use(cors({ origin: ['http://127.0.0.1:8080', 'http://localhost:8080', 'https://mentoro-ai-dev-backend.onrender.com'], // Explicitly allow your frontend origins
     methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false, // Set to true if you need cookies or credentials
