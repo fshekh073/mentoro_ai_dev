@@ -625,7 +625,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
     // Initialize Tesseract worker
     worker = await createWorker('eng', 1, {
-      langPath: 'D:/AI tutor base/lang-data',
+      langPath: path.join(__dirname, 'lang-data'),
       oem: 1,
     });
 
