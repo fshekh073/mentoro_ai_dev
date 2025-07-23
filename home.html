@@ -518,8 +518,7 @@
   padding: 2rem;
 }
   
- </style>
-	<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+ </style>	
 
 </head>
 <body>
@@ -1196,23 +1195,24 @@
       });
       setShowCorrectPopup(newShowCorrectPopup);
 
-      try {
-        await axios.post(`${API_BASE_URL}/save-activity`, {
-          question,
-          grade,
-          language,
-          quiz_score: correctCount,
-        }, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        console.log('Quiz activity saved successfully!');
-      } catch (error) {
-        console.error('Error saving quiz activity:', error.response ? error.response.data : error.message);
-        showCustomAlert('Data Save Error', 'Failed to save quiz performance. Please try again.');
+      (async () => {
+  try {
+    await axios.post(`${API_BASE_URL}/save-activity`, {
+      question,
+      grade,
+      language,
+      quiz_score: correctCount,
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
       }
-    };
+    });
+    console.log('Quiz activity saved successfully!');
+  } catch (error) {
+    console.error('Error saving quiz activity:', error.response ? error.response.data : error.message);
+    showCustomAlert('Data Save Error', 'Failed to save quiz performance. Please try again.');
+  }
+})();
 
     const handleLogout = () => {
       localStorage.removeItem('token');
