@@ -1334,13 +1334,7 @@
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 playful-text">
               Welcome, {currentUser.username} ({currentUser.role}{currentUser.class ? ` - ${currentUser.class}` : ''})
-            </h2>
-            <button
-              onClick={handleLogout}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-indigo-600 font-semibold px-4 py-2 rounded-lg shadow hover:bg-gray-100 transition-all"
-            >
-              Logout
-            </button>
+            </h2>            
           </div>
 
           {/* Navigation Tabs */}
@@ -1357,7 +1351,14 @@
             >
               My Progress
             </button>
-          </div>
+	{/* Logout button added here */}
+  	<MotionButton
+    	onClick={handleLogout}
+    	className="px-5 py-2 rounded-full text-lg font-semibold transition-all duration-300 bg-red-600 text-white shadow-md hover:bg-red-700"
+  >
+    Logout
+  </MotionButton>
+</div>
 
           {currentView === 'tutor' && (
             <>
