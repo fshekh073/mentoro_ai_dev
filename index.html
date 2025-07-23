@@ -149,27 +149,30 @@
       display: flex;
       flex-direction: column;
       padding: 2rem;
-      padding-top: 6rem;	    
-      position: relative;
+      padding-top: 6rem;    
+      position: relative; /* Ensure this is relative for absolute children */
     }
 
     .header-section {
       width: 100%;
       text-align: center;
-      margin-bottom: 6rem;
+      /* margin-bottom: 6rem; Removed as main-content is gone */
     }
 
+    /* .main-content rule removed */
+    /*
     .main-content {
       width: 100%;
-      height: calc(100vh - 10rem); /* Adjust based on header height */
+      height: calc(100vh - 10rem);
       position: absolute;
       top: 10rem;
       left: 0;
     }
+    */
 
     .mission-section {
       position: absolute;
-      top: 0;
+      top: 0; /* Positioned relative to auth-container's padding-top */
       left: 0;
       width: 24rem;
       padding: 2rem;
@@ -177,24 +180,18 @@
 
     .form-section {
       position: absolute;
-      top: 0;
+      top: 0; /* Positioned relative to auth-container's padding-top */
       right: 0;
       width: 24rem;
       padding: 2rem;
     }
-	@media (max-width: 768px) {
-    .main-content {
-      position: static !important;
-      height: auto !important;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
-    }
+    @media (max-width: 768px) {
+    /* Main-content rules are now applied directly to the sections for mobile */
+    /* Removed .main-content rules */
 
     .mission-section,
     .form-section {
-      position: static !important;
+      position: static !important; /* Override absolute positioning for mobile */
       width: 100% !important;
       padding: 1.25rem !important;
       margin-bottom: 1.5rem;
@@ -210,6 +207,7 @@
 
     .auth-container {
       padding: 1.5rem !important;
+      /* Adjust padding-top for mobile if needed, but 6rem seems okay for header */
     }
 
     .header-section {
@@ -618,23 +616,22 @@
       return (
         <div className="auth-container">
           <div className="header-section fixed top-0 left-0 w-full bg-white z-50 shadow-md py-4">
-  		<h1 className="text-4xl md:text-6xl font-extrabold text-gray-800 drop-shadow-lg text-center">
-    		🎓 Mentoro <span className="text-teal-600">AI</span>
-  		</h1>
-		</div>
-          <div className="main-content">
-            <div className="mission-section bg-green-50 p-8 rounded-3xl shadow-lg border border-green-200 text-center mission-pop-in">
-              <h2 className="text-3xl font-bold text-green-700 mb-4 flex items-center justify-center">
-                <span className="mr-3 text-4xl">💡</span> Our Mission
-              </h2>
-              <p className="text-green-800 text-xl leading-relaxed">
-                Empowering every student with personalized learning, making education accessible and engaging for all.
-              </p>
-            </div>
-            <div className="form-section">
-              {view === 'login' && <Login onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setView('signup')} />}
-              {view === 'signup' && <Signup onSignupSuccess={handleSignupSuccess} onNavigateToLogin={() => setView('login')} />}
-            </div>
+            <h1 className="text-4xl md:text-6xl font-extrabold text-gray-800 drop-shadow-lg text-center">
+              🎓 Mentoro <span className="text-teal-600">AI</span>
+            </h1>
+          </div>
+          {/* Main-content div removed */}
+          <div className="mission-section bg-green-50 p-8 rounded-3xl shadow-lg border border-green-200 text-center mission-pop-in">
+            <h2 className="text-3xl font-bold text-green-700 mb-4 flex items-center justify-center">
+              <span className="mr-3 text-4xl">💡</span> Our Mission
+            </h2>
+            <p className="text-green-800 text-xl leading-relaxed">
+              Empowering every student with personalized learning, making education accessible and engaging for all.
+            </p>
+          </div>
+          <div className="form-section">
+            {view === 'login' && <Login onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setView('signup')} />}
+            {view === 'signup' && <Signup onSignupSuccess={handleSignupSuccess} onNavigateToLogin={() => setView('login')} />}
           </div>
         </div>
       );
