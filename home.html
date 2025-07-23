@@ -1148,7 +1148,7 @@
       setUserAnswers(prev => ({ ...prev, [qIndex]: option }));
     };
 
-    const handleCheckQuiz = () => {
+    const handleCheckQuiz = async () => {
   let correctCount = 0;
   let total = quizQuestions.length;
 
