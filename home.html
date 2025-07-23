@@ -1225,16 +1225,11 @@
     }, [explanation, grade]);
 
     // Enhanced Tutor Avatar with Lottie Animation
-   import React, { useEffect, useRef } from 'react';
-import { motion as MotionDiv } from 'framer-motion';
-
-const TutorAvatar = ({ isSpeaking, isLoading, showOcrProgress, ocrProgress }) => {
+   const TutorAvatar = ({ isSpeaking, isLoading, showOcrProgress, ocrProgress }) => {
   const lottieRef = useRef(null);
 
   useEffect(() => {
     const player = lottieRef.current;
-
-    // Wait until Lottie player is defined
     if (player && typeof player.play === 'function') {
       if (isLoading || isSpeaking) {
         player.play();
