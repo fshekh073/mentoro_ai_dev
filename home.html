@@ -628,6 +628,22 @@
         localStorage.removeItem('user');
         window.location.href = '/';
       }
+	    const sessionStart = new Date().toISOString();
+
+window.addEventListener("beforeunload", async () => {
+  const sessionEnd = new Date().toISOString();
+  const token = localStorage.getItem('token');
+  if (token) {
+    await fetch(`${API_BASE_URL}/track-session`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ start_time: sessionStart, end_time: sessionEnd })
+    });
+  }
+});
     }, []);
 
     // Existing States
