@@ -19,12 +19,12 @@
 
   <style>
   /* Base styles for body and font families */
-   {
+  body {
     font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
-    background: #f0f4f8;
+    background: #f3f4f6;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
@@ -510,8 +510,17 @@
     height: auto !important;
   }
 }
+.stylish-panel {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
   
  </style>
+	<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 </head>
 <body>
   <div id="root"></div>
@@ -1139,25 +1148,42 @@
       setUserAnswers(prev => ({ ...prev, [qIndex]: option }));
     };
 
-    const handleCheckQuiz = async () => {
-      if (quizQuestions.length === 0) return;
+    const handleCheckQuiz = () => {
+  let correctCount = 0;
+  let total = quizQuestions.length;
 
-      const allAnswered = quizQuestions.every((_, index) => userAnswers[index]);
-      if (!allAnswered) {
-        showCustomAlert('Incomplete Quiz', 'Please answer all questions before checking.');
-        return;
-      }
+  quizQuestions.forEach((q, index) => {
+    if (selectedAnswers[index] === q.correctAnswer) {
+      correctCount++;
+    }
+  });
 
-      let correctCount = 0;
-      const results = quizQuestions.map((q, index) => {
-        const isCorrect = userAnswers[index] === q.correctAnswer;
-        if (isCorrect) {
-          correctCount++;
-          triggerConfetti();
-        }
-        return { questionIndex: index, isCorrect, userAnswer: userAnswers[index], correctAnswer: q.correctAnswer };
-      });
-      setQuizResults(results);
+  const results = {
+    score: correctCount,
+    total: total,
+    completed: true
+  };
+
+  // Save results state
+  setResult(results);
+  setQuizResults(results);
+
+  // Show stylish feedback based on score
+  if (correctCount === total) {
+    // 🎉 All answers correct
+    triggerConfetti();
+    showCustomAlert(
+      "🎉 Excellent!",
+      "You answered everything correctly! 😊 Keep it up!"
+    );
+  } else {
+    // 😐 Some answers wrong
+    showCustomAlert(
+      "🤔 Almost There!",
+      `You got ${correctCount} out of ${total} correct. Don’t worry! I'm here to help you with a personalized improvement plan. 💪`
+    );
+  }
+};
 
       const newShowCorrectPopup = {};
       results.forEach((result, index) => {
@@ -1199,41 +1225,49 @@
     }, [explanation, grade]);
 
     // Enhanced Tutor Avatar with Lottie Animation
-    const TutorAvatar = ({ isSpeaking, isLoading }) => {
-      const lottieRef = useRef(null);
+   import React, { useEffect, useRef } from 'react';
+import { motion as MotionDiv } from 'framer-motion';
 
-      useEffect(() => {
-        if (lottieRef.current) {
-          const animation = lottieRef.current;
-          if (isLoading) {
-            animation.play();
-          } else if (isSpeaking) {
-            animation.play();
-          } else {
-            animation.pause();
-          }
-        }
-      }, [isSpeaking, isLoading]);
+const TutorAvatar = ({ isSpeaking, isLoading, showOcrProgress, ocrProgress }) => {
+  const lottieRef = useRef(null);
 
-      return (
-        <MotionDiv className="relative w-28 h-28 min-w-[112px] min-h-[112px] rounded-full shadow-lg overflow-hidden">
-          <lottie-player
-            ref={lottieRef}
-            src="https://assets.lottiefiles.com/packages/lf20_8q3aw9.json"
-            background="transparent"
-            speed="1"
-            loop
-            style={{ width: '100%', height: '100%' }}
-          ></lottie-player>
-          {showOcrProgress && (
-            <div className="ocr-progress-bar mt-2">
-              <div className="ocr-progress-fill" style={{ width: `${ocrProgress}%` }}></div>
-              <p className="text-center text-sm text-gray-600 mt-1">{ocrProgress}%</p>
-            </div>
-          )}
-        </MotionDiv>
-      );
-    };
+  useEffect(() => {
+    const player = lottieRef.current;
+
+    // Wait until Lottie player is defined
+    if (player && typeof player.play === 'function') {
+      if (isLoading || isSpeaking) {
+        player.play();
+      } else {
+        player.pause();
+      }
+    }
+  }, [isSpeaking, isLoading]);
+
+  return (
+    <MotionDiv className="relative w-28 h-28 min-w-[112px] min-h-[112px] rounded-full shadow-lg overflow-hidden bg-white/70 backdrop-blur-md">
+      <lottie-player
+        ref={lottieRef}
+        autoplay
+        loop
+        mode="normal"
+        speed="1"
+        src="https://assets9.lottiefiles.com/packages/lf20_zrqthn6o.json"  // 💡 Replace with any avatar you prefer
+        background="transparent"
+        style={{ width: '100%', height: '100%' }}
+      ></lottie-player>
+
+      {showOcrProgress && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-200 rounded-b-lg p-1">
+          <div className="h-1 bg-blue-500 rounded" style={{ width: `${ocrProgress}%` }}></div>
+          <p className="text-xs text-center text-gray-700 mt-1">{ocrProgress}%</p>
+        </div>
+      )}
+    </MotionDiv>
+  );
+};
+
+export default TutorAvatar;
 
     // Fetch Student Activities
     useEffect(() => {
@@ -1322,7 +1356,7 @@
     return (
       <div className="min-h-screen animated-gradient-bg p-4 md:p-6 pt-24 flex flex-col items-center relative">
         
-        <div className="header-section fixed top-0 left-0 w-full bg-white z-50 shadow-md py-4">
+        <div className="header-section fixed top-0 left-0 w-full bg-gradient-to-r from-teal-400 via-blue-400 to-indigo-40 z-50 shadow-md py-4">
   		<h1 className="text-4xl md:text-6xl font-extrabold text-gray-800 drop-shadow-lg text-center">
     		🎓 Mentoro <span className="text-teal-600">AI</span>
   		</h1>
