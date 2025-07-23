@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentoro Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex items-center justify-center p-6">
+  <div id="app" class="w-full max-w-2xl mx-auto"></div>
+
+  <script>
+    const API_URL = window.location.hostname.includes('localhost')
+      ? 'http://localhost:5000/api/analytics/summary'
+      : 'https://mentoro-ai-dev-backend.onrender.com/api/analytics/summary';
+
+    const ADMIN_PASSWORD = 'supersecret2024'; // 🔒 Change this password
+
+    const app = document.getElementById('app');
+
+    const showLogin = () => {
+      app.innerHTML = `
+        <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+          <h2 class="text-2xl font-bold mb-4">🔒 Admin Login</h2>
+          <input id="passwordInput" type="password" placeholder="Enter Admin Password" class="w-full px-4 py-2 border rounded mb-4" />
+          <button onclick="verifyPassword()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Access Dashboard</button>
+          <p id="error" class="text-red-500 mt-4 hidden">Incorrect password</p>
+        </div>
+      `;
+    };
+
+    const verifyPassword = () => {
+      const input = document.getElementById('passwordInput').value;
+      const error = document.getElementById('error');
+      if (input === ADMIN_PASSWORD) {
+        loadAnalytics();
+      } else {
+        error.classList.remove('hidden');
+      }
+    };
+
+    const loadAnalytics = async () => {
+      app.innerHTML = `<div class="text-center py-12"><p class="text-lg font-semibold">Loading Analytics...</p></div>`;
+
+      try {
+        const res = await axios.get(API_URL);
+        const data = res.data;
+
+        app.innerHTML = `
+          <div class="bg-white rounded-xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold mb-6 text-center">📊 Usage Analytics</h1>
+            <ul class="space-y-4">
+              <li><strong>Period:</strong> ${data.period}</li>
+              <li><strong>🧑 Unique Users:</strong> ${data.uniqueUsers}</li>
+              <li><strong>🔁 Total Logins:</strong> ${data.totalLogins}</li>
+              <li><strong>⏱️ Avg Session Duration:</strong> ${data.averageSessionMinutes} min</li>
+              <li><strong>🧪 Quiz Attempts:</strong> ${data.totalQuizAttempts}</li>
+              <li><strong>📈 Sessions Tracked:</strong> ${data.sessionsTracked}</li>
+            </ul>
+          </div>
+        `;
+      } catch (err) {
+        app.innerHTML = `<div class="text-red-600 font-bold text-center">❌ Failed to load analytics. Check backend.</div>`;
+        console.error(err);
+      }
+    };
+
+    // Initial load
+    showLogin();
+  </script>
+</body>
+</html>
