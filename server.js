@@ -383,17 +383,6 @@ app.post('/api/login', async (req, res) => {
     console.error('Login Error:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Failed to log in. Please try again.' });
   }
-	// Track login time
-await axios.post(`${SUPABASE_URL}/rest/v1/user_logins`, {
-  user_id: user.id,
-  timestamp: new Date().toISOString()
-}, {
-  headers: {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json'
-  }
-});
 });
 
 app.get('/api/user/profile', authenticateToken, (req, res) => {
@@ -882,69 +871,6 @@ app.get('/app', (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname)));
-
-app.post('/api/track-session', authenticateToken, async (req, res) => {
-  const { start_time, end_time } = req.body;
-  const user_id = req.user.id;
-
-  if (!start_time || !end_time) {
-    return res.status(400).json({ error: 'Start and end times are required.' });
-  }
-
-  try {
-    await axios.post(`${SUPABASE_URL}/rest/v1/user_sessions`, {
-      user_id,
-      start_time,
-      end_time,
-      duration_minutes: Math.floor((new Date(end_time) - new Date(start_time)) / 60000)
-    }, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    res.status(201).json({ message: 'Session tracked successfully.' });
-  } catch (error) {
-    console.error('Error tracking session:', error.message);
-    res.status(500).json({ error: 'Failed to track session.' });
-  }
-});
-app.get('/api/analytics/summary', async (req, res) => {
-  const since = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
-
-  try {
-    const [logins, sessions, quizzes] = await Promise.all([
-      axios.get(`${SUPABASE_URL}/rest/v1/user_logins?timestamp=gte.${since}`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-      }),
-      axios.get(`${SUPABASE_URL}/rest/v1/user_sessions?start_time=gte.${since}`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-      }),
-      axios.get(`${SUPABASE_URL}/rest/v1/student_activity?timestamp=gte.${since}`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-      })
-    ]);
-
-    const uniqueUsers = new Set(logins.data.map(x => x.user_id)).size;
-    const avgDuration = sessions.data.length > 0
-      ? Math.round(sessions.data.reduce((acc, cur) => acc + cur.duration_minutes, 0) / sessions.data.length)
-      : 0;
-
-    res.json({
-      period: 'Last 15 days',
-      uniqueUsers,
-      totalLogins: logins.data.length,
-      averageSessionMinutes: avgDuration,
-      totalQuizAttempts: quizzes.data.length,
-      sessionsTracked: sessions.data.length
-    });
-  } catch (err) {
-    console.error('Error fetching analytics:', err.message);
-    res.status(500).json({ error: 'Failed to fetch analytics.' });
-  }
-});
 
 async function startServer() {
   try {
