@@ -1147,20 +1147,84 @@
       setUserAnswers(prev => ({ ...prev, [qIndex]: option }));
     };
 
-    const handleCheckQuiz = async () => {
+    The error Uncaught ReferenceError: results is not defined occurs in the code block starting with results.forEach((result, index) => {, indicating that the variable results is being referenced but hasn't been defined in the scope where it's used. Let's analyze the provided code to identify the issue and suggest a fix.
+
+Issue Analysis
+Variable results Usage:
+The results variable is defined inside the handleCheckQuiz function as:
+javascript
+
+
+
+
+const results = {
+  score: correctCount,
+  total: total,
+  completed: true
+};
+This variable is used correctly within handleCheckQuiz to set state (setResult(results) and setQuizResults(results)) and in the feedback logic.
+However, later in the code, there’s a separate block that attempts to iterate over results:
+javascript
+
+
+
+
+results.forEach((result, index) => {
+  newShowCorrectPopup[index] = result.isCorrect;
+  if (result.isCorrect) {
+    playSound('correct');
+  } else {
+    playSound('incorrect');
+  }
+});
+This block is outside the handleCheckQuiz function and appears to be in a different scope (likely the global scope or another function). Since results is defined only within handleCheckQuiz, it’s undefined in this outer scope, causing the ReferenceError.
+Structural Issue:
+The code block manipulating newShowCorrectPopup and the axios call seem to be incorrectly placed outside the handleCheckQuiz function, possibly due to a copy-paste error or incorrect code organization.
+The results variable in the problematic block is expected to be an array (since forEach is used and it references result.isCorrect), but the results object defined in handleCheckQuiz is an object { score, total, completed }, not an array, and it doesn’t have an isCorrect property. This suggests a mismatch in the expected data structure.
+Expected Behavior:
+The code seems to intend to iterate over quiz answers to check correctness (isCorrect) for each question, likely to provide feedback (e.g., playing sounds) and update a showCorrectPopup state.
+The results in the problematic block likely refers to an array of objects, each representing a quiz question’s result (e.g., { isCorrect: boolean }), not the results object from handleCheckQuiz.
+Other Observations:
+The axios call references variables question, grade, and language, which are not defined in the provided code snippet. This could lead to additional errors if these variables are undefined.
+The axios call uses a template literal incorrectly: axios.post${API_BASE_URL}/save-activity. It should use string concatenation or a template literal properly, like axios.post(${API_BASE_URL}/save-activity, ...).
+Fixing the Code
+To resolve the ReferenceError: results is not defined and align the code with its intended functionality, we need to:
+
+Generate an array of result objects within handleCheckQuiz to track correctness for each question.
+Move the newShowCorrectPopup logic and axios call inside handleCheckQuiz to ensure results is in scope and correctly structured.
+Fix the axios call syntax and ensure required variables are defined.
+Here’s the corrected code:
+
+javascript
+
+Collapse
+
+Wrap
+
+Run
+
+Copy
+const handleCheckQuiz = async () => {
   let correctCount = 0;
   let total = quizQuestions.length;
 
+  // Create an array to store correctness of each answer
+  const quizResultsArray = quizQuestions.map((q, index) => ({
+    isCorrect: selectedAnswers[index] === q.correctAnswer,
+  }));
+
+  // Count correct answers
   quizQuestions.forEach((q, index) => {
     if (selectedAnswers[index] === q.correctAnswer) {
       correctCount++;
     }
   });
 
+  // Define results object for score
   const results = {
     score: correctCount,
     total: total,
-    completed: true
+    completed: true,
   };
 
   // Save results state
@@ -1182,37 +1246,47 @@
       `You got ${correctCount} out of ${total} correct. Don’t worry! I'm here to help you with a personalized improvement plan. 💪`
     );
   }
-};
 
-      const newShowCorrectPopup = {};
-      results.forEach((result, index) => {
-        newShowCorrectPopup[index] = result.isCorrect;
-        if (result.isCorrect) {
-          playSound('correct');
-        } else {
-          playSound('incorrect');
-        }
-      });
-      setShowCorrectPopup(newShowCorrectPopup);
+  // Update showCorrectPopup for each question
+  const newShowCorrectPopup = {};
+  quizResultsArray.forEach((result, index) => {
+    newShowCorrectPopup[index] = result.isCorrect;
+    if (result.isCorrect) {
+      playSound("correct");
+    } else {
+      playSound("incorrect");
+    }
+  });
+  setShowCorrectPopup(newShowCorrectPopup);
 
-      (async () => {
+  // Save quiz activity to backend
   try {
-    await axios.post(`${API_BASE_URL}/save-activity`, {
-      question,
-      grade,
-      language,
-      quiz_score: correctCount,
-    }, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
+    await axios.post(
+      `${API_BASE_URL}/save-activity`,
+      {
+        question: quizQuestions, // Ensure this is the correct data
+        grade: grade || "unknown", // Define or pass grade
+        language: language || "unknown", // Define or pass language
+        quiz_score: correctCount,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       }
-    });
-    console.log('Quiz activity saved successfully!');
+    );
+    console.log("Quiz activity saved successfully!");
   } catch (error) {
-    console.error('Error saving quiz activity:', error.response ? error.response.data : error.message);
-    showCustomAlert('Data Save Error', 'Failed to save quiz performance. Please try again.');
+    console.error(
+      "Error saving quiz activity:",
+      error.response ? error.response.data : error.message
+    );
+    showCustomAlert(
+      "Data Save Error",
+      "Failed to save quiz performance. Please try again."
+    );
   }
-})();
+};
 
     const handleLogout = () => {
       localStorage.removeItem('token');
