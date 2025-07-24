@@ -1182,7 +1182,7 @@ const handleCheckQuiz = async () => {
 
   // Count correct answers
   quizQuestions.forEach((q, index) => {
-    if (userAnswers[index] === q.correctAnswer) {
+    if (userAnswers[index] === q.correctCount) { // IMPORTANT: Ensure this is 'correctAnswer' if that's the property name
       calculatedCorrectCount++; // Increment the temporary variable
     }
   });
@@ -1216,10 +1216,7 @@ const handleCheckQuiz = async () => {
     );
   }
 
-  // ... (the rest of your function, like updating showCorrectPopup and saving activity to backend)
-  // Ensure you use 'calculatedCorrectCount' wherever you previously used 'correctCount'
-  // for the score value in the remainder of this function.
-};
+  // <--- EVERYTHING BELOW THIS LINE NEEDS TO BE MOVED INSIDE THIS FUNCTION'S CURLY BRACES!
 
   // Update showCorrectPopup for each question
   const newShowCorrectPopup = {};
@@ -1241,7 +1238,7 @@ const handleCheckQuiz = async () => {
         question: quizQuestions, // Ensure this is the correct data
         grade: grade || "unknown", // Define or pass grade
         language: language || "unknown", // Define or pass language
-        quiz_score: correctCount,
+        quiz_score: calculatedCorrectCount, // IMPORTANT: Use calculatedCorrectCount here
       },
       {
         headers: {
@@ -1259,7 +1256,7 @@ const handleCheckQuiz = async () => {
       "Failed to save quiz performance. Please try again."
     );
   }
-};
+}; // <--- Th
 
     const handleLogout = () => {
       localStorage.removeItem('token');
