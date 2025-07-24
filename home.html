@@ -542,6 +542,8 @@
 
   const { useState, useEffect, useRef, useMemo } = React;
 
+const [correctCount, setCorrectCount] = useState(0);
+
   const API_BASE_URL = window.location.hostname.includes('localhost')
     ? 'http://localhost:5000/api'
     : 'https://mentoro-ai-dev-backend.onrender.com/api'; // Update for local/mobile testing https://05455561e62d.ngrok-free.app // http://localhost:5000/api' // https://-ai-dev-backend.onrender.com  -- for live render
@@ -1166,34 +1168,40 @@ results.forEach((result, index) => {
 });
 
 const handleCheckQuiz = async () => {
-  let correctCount = 0;
+  // REMOVE THIS LINE:
+  // let correctCount = 0;
+
+  // Use a temporary variable for the calculation *within* this function:
+  let calculatedCorrectCount = 0;
   let total = quizQuestions.length;
 
   // Create an array to store correctness of each answer
   const quizResultsArray = quizQuestions.map((q, index) => ({
-    isCorrect: userAnswers[index] === q.correctAnswer, // Changed selectedAnswers to userAnswers based on context
+    isCorrect: userAnswers[index] === q.correctAnswer,
   }));
 
   // Count correct answers
   quizQuestions.forEach((q, index) => {
-    if (userAnswers[index] === q.correctAnswer) { // Changed selectedAnswers to userAnswers based on context
-      correctCount++;
+    if (userAnswers[index] === q.correctAnswer) {
+      calculatedCorrectCount++; // Increment the temporary variable
     }
   });
 
+  // *** KEY CHANGE: Update the state variable using setCorrectCount ***
+  setCorrectCount(calculatedCorrectCount);
+
   // Define results object for score
   const results = {
-    score: correctCount,
+    score: calculatedCorrectCount, // Use the calculatedCorrectCount here
     total: total,
     completed: true,
   };
 
   // Save results state
-  // setResult(results); // This line was present in the provided fix's comments, but setResult is not defined in the provided file. Using setQuizResults
   setQuizResults(results);
 
   // Show stylish feedback based on score
-  if (correctCount === total) {
+  if (calculatedCorrectCount === total) { // Use calculatedCorrectCount here
     // 🎉 All answers correct
     triggerConfetti();
     showCustomAlert(
@@ -1204,9 +1212,14 @@ const handleCheckQuiz = async () => {
     // 😐 Some answers wrong
     showCustomAlert(
       "🤔 Almost There!",
-      `You got ${correctCount} out of ${total} correct. Don’t worry! I'm here to help you with a personalized improvement plan. 💪`
+      `You got ${calculatedCorrectCount} out of ${total} correct. Don’t worry! I'm here to help you with a personalized improvement plan. 💪`
     );
   }
+
+  // ... (the rest of your function, like updating showCorrectPopup and saving activity to backend)
+  // Ensure you use 'calculatedCorrectCount' wherever you previously used 'correctCount'
+  // for the score value in the remainder of this function.
+};
 
   // Update showCorrectPopup for each question
   const newShowCorrectPopup = {};
