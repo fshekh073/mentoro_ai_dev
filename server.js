@@ -13,7 +13,7 @@ const sharp = require('sharp');
 const spell = require('spellchecker');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
