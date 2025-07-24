@@ -715,7 +715,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
   }
 
   try {
-    const isUnlimitedUser = username === 'faisal'; // 👈 Your bypass condition
+    const isUnlimitedUser = username === 'fshekh'; // 👈 Your bypass condition
 
     // ✅ 1. Supabase usage check (for normal users only)
     let usageToday = null;
