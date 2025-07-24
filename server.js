@@ -13,6 +13,7 @@ const sharp = require('sharp');
 const spell = require('spellchecker');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const { Configuration, OpenAIApi } = require('openai');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 
