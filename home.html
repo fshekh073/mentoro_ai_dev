@@ -1210,12 +1210,12 @@ const handleCheckQuiz = async () => {
 
   // Create an array to store correctness of each answer
   const quizResultsArray = quizQuestions.map((q, index) => ({
-    isCorrect: selectedAnswers[index] === q.correctAnswer,
+    isCorrect: userAnswers[index] === q.correctAnswer, // Changed selectedAnswers to userAnswers based on context
   }));
 
   // Count correct answers
   quizQuestions.forEach((q, index) => {
-    if (selectedAnswers[index] === q.correctAnswer) {
+    if (userAnswers[index] === q.correctAnswer) { // Changed selectedAnswers to userAnswers based on context
       correctCount++;
     }
   });
@@ -1228,7 +1228,7 @@ const handleCheckQuiz = async () => {
   };
 
   // Save results state
-  setResult(results);
+  // setResult(results); // This line was present in the provided fix's comments, but setResult is not defined in the provided file. Using setQuizResults
   setQuizResults(results);
 
   // Show stylish feedback based on score
@@ -1278,8 +1278,7 @@ const handleCheckQuiz = async () => {
     console.log("Quiz activity saved successfully!");
   } catch (error) {
     console.error(
-      "Error saving quiz activity:",
-      error.response ? error.response.data : error.message
+      "Error saving quiz activity:", error.response ? error.response.data : error.message
     );
     showCustomAlert(
       "Data Save Error",
