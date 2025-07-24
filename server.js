@@ -12,7 +12,6 @@ const { createWorker } = require('tesseract.js');
 const sharp = require('sharp');
 const spell = require('spellchecker');
 const router = express.Router();
-const { Configuration, OpenAIApi } = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
