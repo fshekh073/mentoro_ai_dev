@@ -698,19 +698,42 @@ return res.json({ text: finalCorrectedText });
 // ================== EXISTING AI API ENDPOINTS ==================
 app.post('/api/explain', authenticateToken, async (req, res) => {
   const { question, grade, language, role } = req.body;
+  const userId = req.user?.id;
   const cacheKey = `${question}-${grade}-${language}-${role}`;
+  const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
 
-  if (explanationCache.has(cacheKey)) {
-    return res.json({ explanation: explanationCache.get(cacheKey) });
-  }
-
+  // 🚫 Sensitive content block
   const lowerQuestion = question.toLowerCase();
   if (SENSITIVE_KEYWORDS.some(k => lowerQuestion.includes(k))) {
     return res.json({ explanation: `⚠️ I can't explain this topic as it may contain sensitive content.` });
   }
 
+  // ✅ Check in-memory cache first
+  if (explanationCache.has(cacheKey)) {
+    return res.json({ explanation: explanationCache.get(cacheKey) });
+  }
+
   try {
+    // ✅ 1. Supabase usage check
+    const { data: usageToday, error: usageFetchError } = await supabase
+      .from('usage_limits')
+      .select('explain_count')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (usageFetchError) {
+      console.error('Supabase usage fetch error:', usageFetchError.message);
+      return res.status(500).json({ error: 'Unable to check usage limits.' });
+    }
+
+    if (usageToday && usageToday.explain_count >= 10) {
+      return res.status(429).json({ error: '🚫 Daily explanation limit reached (10 per day). Please try again tomorrow.' });
+    }
+
+    // ✅ 2. Build prompt and call OpenAI
     const prompt = buildExplanationPrompt(question, grade, language, role);
+
     if (!OPENAI_API_KEY) {
       console.error("OPENAI_API_KEY is not defined.");
       return res.status(500).json({ error: "Server configuration error: OpenAI API key is missing." });
@@ -732,9 +755,25 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
       { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
     );
 
-    let content = formatResponse(response.data.choices[0].message.content, grade);
-    explanationCache.set(cacheKey, content);
-    res.json({ explanation: content });
+    const explanation = formatResponse(response.data.choices[0].message.content, grade);
+
+    // ✅ 3. Store to in-memory cache
+    explanationCache.set(cacheKey, explanation);
+
+    // ✅ 4. Save to Supabase usage_limits
+    if (usageToday) {
+      await supabase
+        .from('usage_limits')
+        .update({ explain_count: usageToday.explain_count + 1 })
+        .eq('user_id', userId)
+        .eq('date', today);
+    } else {
+      await supabase
+        .from('usage_limits')
+        .insert([{ user_id: userId, date: today, explain_count: 1 }]);
+    }
+
+    return res.json({ explanation });
   } catch (error) {
     console.error('Explanation Error:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Failed to generate explanation. Please try again.' });
