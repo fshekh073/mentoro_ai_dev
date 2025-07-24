@@ -699,6 +699,7 @@ return res.json({ text: finalCorrectedText });
 app.post('/api/explain', authenticateToken, async (req, res) => {
   const { question, grade, language, role } = req.body;
   const userId = req.user?.id;
+  const username = req.user?.username;
   const cacheKey = `${question}-${grade}-${language}-${role}`;
   const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
 
@@ -714,21 +715,30 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
   }
 
   try {
-    // ✅ 1. Supabase usage check
-    const { data: usageToday, error: usageFetchError } = await supabase
-      .from('usage_limits')
-      .select('explain_count')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .maybeSingle();
+    const isUnlimitedUser = username === 'faisal'; // 👈 Your bypass condition
 
-    if (usageFetchError) {
-      console.error('Supabase usage fetch error:', usageFetchError.message);
-      return res.status(500).json({ error: 'Unable to check usage limits.' });
-    }
+    // ✅ 1. Supabase usage check (for normal users only)
+    let usageToday = null;
+    if (!isUnlimitedUser) {
+      const { data, error } = await supabase
+        .from('usage_limits')
+        .select('explain_count')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle();
 
-    if (usageToday && usageToday.explain_count >= 10) {
-      return res.status(429).json({ error: '🚫 Daily explanation limit reached (10 per day). Please try again tomorrow.' });
+      if (error) {
+        console.error('Supabase usage fetch error:', error.message);
+        return res.status(500).json({ error: 'Unable to check usage limits.' });
+      }
+
+      usageToday = data;
+
+      if (usageToday && usageToday.explain_count >= 10) {
+        return res.status(429).json({
+          error: '🚫 Daily explanation limit reached (10 per day). Please try again tomorrow.'
+        });
+      }
     }
 
     // ✅ 2. Build prompt and call OpenAI
@@ -760,17 +770,21 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
     // ✅ 3. Store to in-memory cache
     explanationCache.set(cacheKey, explanation);
 
-    // ✅ 4. Save to Supabase usage_limits
-    if (usageToday) {
-      await supabase
-        .from('usage_limits')
-        .update({ explain_count: usageToday.explain_count + 1 })
-        .eq('user_id', userId)
-        .eq('date', today);
+    // ✅ 4. Increment Supabase usage count (only for normal users)
+    if (!isUnlimitedUser) {
+      if (usageToday) {
+        await supabase
+          .from('usage_limits')
+          .update({ explain_count: usageToday.explain_count + 1 })
+          .eq('user_id', userId)
+          .eq('date', today);
+      } else {
+        await supabase
+          .from('usage_limits')
+          .insert([{ user_id: userId, date: today, explain_count: 1 }]);
+      }
     } else {
-      await supabase
-        .from('usage_limits')
-        .insert([{ user_id: userId, date: today, explain_count: 1 }]);
+      console.log(`✅ Unlimited usage for user: ${username}`);
     }
 
     return res.json({ explanation });
