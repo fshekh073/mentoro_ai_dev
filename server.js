@@ -11,6 +11,11 @@ require('dotenv').config();
 const { createWorker } = require('tesseract.js');
 const sharp = require('sharp');
 const spell = require('spellchecker');
+const router = express.Router();
+const { Configuration, OpenAIApi } = require('openai');
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
 console.log("OPENAI_API_KEY loaded:", process.env.OPENAI_API_KEY ? "Yes (length: " + process.env.OPENAI_API_KEY.length + ")" : "No");
@@ -734,6 +739,69 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Explanation Error:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Failed to generate explanation. Please try again.' });
+  }
+});
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+});
+const openai = new OpenAIApi(configuration);
+
+router.post('/explain', async (req, res) => {
+  try {
+    const { question, grade, role, language } = req.body;
+
+    if (!question || !grade || !role || !language) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    // 🔍 Check if explanation already exists in Supabase cache
+    const { data: cached, error: fetchError } = await supabase
+      .from('explanations_cache')
+      .select('explanation')
+      .eq('question', question)
+      .eq('class', grade)
+      .eq('role', role)
+      .eq('language', language)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Supabase fetch error:', fetchError.message);
+    }
+
+    if (cached?.explanation) {
+      console.log('✅ Using cached explanation');
+      return res.json({ explanation: cached.explanation });
+    }
+
+    // 🧠 Call OpenAI to generate explanation
+    const prompt = `Explain the following topic to a ${role} of ${grade} in ${language}:\nTopic: ${question}`;
+    const response = await openai.createChatCompletion({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    });
+
+    const gptExplanation = response.data.choices[0].message.content;
+
+    // 💾 Save to Supabase cache
+    const { error: insertError } = await supabase.from('explanations_cache').insert([{
+      question,
+      class: grade,
+      role,
+      language,
+      explanation: gptExplanation
+    }]);
+
+    if (insertError) {
+      console.error('❌ Failed to insert cache:', insertError.message);
+    }
+
+    return res.json({ explanation: gptExplanation });
+
+  } catch (error) {
+    console.error('❌ API Error:', error.message);
+    return res.status(500).json({ error: 'Something went wrong while generating explanation.' });
   }
 });
 
