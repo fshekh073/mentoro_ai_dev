@@ -895,19 +895,27 @@
         const img = document.getElementById('captured');
         if (cropperRef.current) cropperRef.current.destroy();
         cropperRef.current = new Cropper(img, {
-          aspectRatio: 0,
-          viewMode: 1,
-          autoCropArea: 0.8,
-          responsive: true,
-          zoomable: true,
-          movable: true,
-          scalable: true,
-          preview: '.cropper-preview',
-          background: false,
-          guides: true,
-          center: true,
-          highlight: true,
-        });
+  viewMode: 2,
+  autoCropArea: 1,                // Crop entire image by default
+  responsive: true,
+  movable: true,
+  zoomable: true,
+  scalable: false,
+  rotatable: false,
+  dragMode: 'move',
+  cropBoxMovable: true,
+  cropBoxResizable: true,
+  guides: false,                 // Cleaner UI
+  background: false,
+  center: true,
+  highlight: false,
+  toggleDragModeOnDblclick: false,
+  preview: '.cropper-preview',
+  minContainerWidth: 300,
+  minContainerHeight: 300,
+  minCropBoxWidth: 50,
+  minCropBoxHeight: 50,
+});
       }
       return () => {
         if (cropperRef.current) cropperRef.current.destroy();
