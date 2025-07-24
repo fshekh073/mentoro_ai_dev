@@ -1370,39 +1370,7 @@
                   </svg>
                   <span>Please speak your doubt, I am listening</span>
                 </MotionDiv>
-              )}
-
-              {/* Search Bar */}
-              <div className="flex items-center space-x-2 md:space-x-3 mb-6">
-                <div className="tooltip flex-grow">
-                  <textarea
-					value={searchTerm}
-					onChange={handleSearchTermChange}
-					onKeyDown={(e) => {
-								if (e.key === 'Enter' && !e.shiftKey) {
-								e.preventDefault(); // Prevent form submission
-								handleExplainTopic(searchTerm); // Trigger explanation on Enter
-								} else if (e.key === 'Enter' && e.shiftKey) {
-								e.preventDefault(); // Prevent default Enter behavior
-								setSearchTerm(prev => prev + '\n'); // Add newline with Shift+Enter
-									}
-  }}
-					placeholder="Ask anything (e.g., 'Photosynthesis in Class 7 Hindi')\nType or speak multiple lines here!"
-					className="w-full flex-grow p-5 md:p-6 border border-gray-300 rounded-2xl text-gray-800 bg-blue-50 focus:ring-4 focus:ring-indigo-300 focus:border-transparent transition duration-300 text-base md:text-lg shadow-sm h-24 md:h-32 resize-y"
-                  />
-                  <span className="tooltiptext">Type or speak your question!</span>
-                </div>
-                <MotionButton
-                  ref={micButtonRef}
-                  onClick={startSpeechRecognition}
-                  className={`mic-button p-3 md:p-4 bg-blue-200 text-blue-700 rounded-full hover:bg-blue-300 shadow-lg transform hover:scale-110 transition duration-200 border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 tooltip ${speaking ? 'active' : ''}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  <span className="tooltiptext">Speak your question</span>
-                </MotionButton>
-              </div>
+              )}            
 
               {/* Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
@@ -1454,6 +1422,37 @@
                     ))}
                   </div>
                 </MotionDiv>
+              </div>
+	 {/* Search Bar */}
+              <div className="flex items-center space-x-2 md:space-x-3 mb-6">
+                <div className="tooltip flex-grow">
+                  <textarea
+					value={searchTerm}
+					onChange={handleSearchTermChange}
+					onKeyDown={(e) => {
+								if (e.key === 'Enter' && !e.shiftKey) {
+								e.preventDefault(); // Prevent form submission
+								handleExplainTopic(searchTerm); // Trigger explanation on Enter
+								} else if (e.key === 'Enter' && e.shiftKey) {
+								e.preventDefault(); // Prevent default Enter behavior
+								setSearchTerm(prev => prev + '\n'); // Add newline with Shift+Enter
+									}
+  }}
+					placeholder="Ask anything (e.g., 'Photosynthesis in Class 7 Hindi')\nType or speak multiple lines here!"
+					className="w-full flex-grow p-5 md:p-6 border border-gray-300 rounded-2xl text-gray-800 bg-blue-50 focus:ring-4 focus:ring-indigo-300 focus:border-transparent transition duration-300 text-base md:text-lg shadow-sm h-24 md:h-32 resize-y"
+                  />
+                  <span className="tooltiptext">Type or speak your question!</span>
+                </div>
+                <MotionButton
+                  ref={micButtonRef}
+                  onClick={startSpeechRecognition}
+                  className={`mic-button p-3 md:p-4 bg-blue-200 text-blue-700 rounded-full hover:bg-blue-300 shadow-lg transform hover:scale-110 transition duration-200 border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 tooltip ${speaking ? 'active' : ''}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span className="tooltiptext">Speak your question</span>
+                </MotionButton>
               </div>
 
               {/* Action Buttons */}
