@@ -8,9 +8,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 require('dotenv').config();
-const { createWorker, OEM } = require('tesseract.js');
+const { createWorker } = require('tesseract.js');
 const sharp = require('sharp');
-const cv = require('opencv4nodejs');
 const spell = require('spellchecker');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
@@ -602,86 +601,55 @@ Return only the corrected text.`;
   }
 }
 
-function preprocessWithOpenCV(buffer) {
-  const mat = cv.imdecode(buffer); // Read image buffer
+app.post('/api/ocr', authenticateToken, async (req, res) => {
+  const { image } = req.body;
 
-  const gray = mat.bgrToGray(); // Grayscale
-  const denoised = gray.gaussianBlur(new cv.Size(3, 3), 1.5); // Reduce noise
-  const contrasted = denoised.equalizeHist(); // Boost contrast
-  const thresholded = contrasted.adaptiveThreshold(
-    255,
-    cv.ADAPTIVE_THRESH_MEAN_C,
-    cv.THRESH_BINARY,
-    15,
-    10
-  ); // Binarize
+  if (!image) {
+    return res.status(400).json({ error: 'Image data is required.' });
+  }
 
-  return cv.imencode('.png', thresholded); // Return optimized PNG buffer
-}
+  if (!image.match(/^data:image\/(jpeg|png);base64,/)) {
+    return res.status(400).json({ error: 'Invalid image format. Only JPEG or PNG is supported.' });
+  }
 
-function isImageBlurry(mat) {
-  const laplacian = mat.laplacian(cv.CV_64F);
-  const variance = laplacian.meanStdDev().std[0] ** 2;
-  return variance < 100; // Lower = blurrier
-}
+  let worker = null;
 
-app.post('/api/ocr', upload.single('image'), async (req, res) => {
   try {
-    const buffer = req.file.buffer;
+    const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
+	
+	const stats = await sharp(buffer).stats();
+	const brightness = stats.channels[0].mean;
 
-    // Load image into OpenCV matrix
-    const mat = cv.imdecode(buffer);
-    if (isImageBlurry(mat)) {
-      return res.status(400).json({
-        error: 'Image is too blurry. Please retake with better lighting/focus.',
-      });
-    }
+	if (brightness < 20) {
+	return res.status(400).json({
+    error: '⚠️ Image is too dark. Please retake the photo with better lighting.'
+  });
+}
 
-    // Preprocess image for OCR
-    const preprocessedBuffer = preprocessWithOpenCV(buffer);
+    // Enhance image quality
+    const optimizedBuffer = await sharp(buffer)
+	
+  .resize({ width: 1600, withoutEnlargement: true })
+  .grayscale()
+  .modulate({ brightness: 1.5, contrast: 1.9 })     // Increase visibility
+  .sharpen({ sigma: 1.0, m1: 2.0, m2: 2.0 })         // Aggressively sharpen edges
+  .threshold(145)                                    // Make background white, text dark
+  .normalize()
+  .toFormat('png')
+  .toBuffer();
 
-    // Initialize OCR
-    const worker = await createWorker('eng', 1, {
+    // Initialize Tesseract worker
+    worker = await createWorker('eng', 1, {
       langPath: path.join(__dirname, 'lang-data'),
-      oem: OEM.LSTM_ONLY, // Use LSTM engine for better handwriting results
+      oem: 1,
     });
 
     await worker.setParameters({
-      tessedit_pageseg_mode: '6', // Block of text
-      user_defined_dpi: '500',
+      tessedit_pageseg_mode: '6', // Single block of text
+      user_defined_dpi: '450', // Standard DPI
       preserve_interword_spaces: '1',
-      tessedit_char_blacklist: '|~`@#$%^&*()',
+     // tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // Uppercase and numbers
     });
-
-    const result = await worker.recognize(preprocessedBuffer);
-    const confidence = result.data.confidence;
-
-    // Retry logic if OCR confidence is low
-    if (confidence < 70) {
-      console.log('🔁 Low confidence, retrying with PSM 3...');
-      await worker.setParameters({ tessedit_pageseg_mode: '3' });
-      const retryResult = await worker.recognize(preprocessedBuffer);
-      await worker.terminate();
-
-      return res.json({
-        text: retryResult.data.text,
-        confidence: retryResult.data.confidence,
-        retried: true,
-      });
-    }
-
-    await worker.terminate();
-
-    return res.json({
-      text: result.data.text,
-      confidence,
-      retried: false,
-    });
-  } catch (error) {
-    console.error('OCR Error:', error);
-    return res.status(500).json({ error: 'OCR processing failed' });
-  }
-});
 
     // Run OCR
     const { data: { text, confidence, words } } = await worker.recognize(optimizedBuffer);
@@ -690,12 +658,11 @@ app.post('/api/ocr', upload.single('image'), async (req, res) => {
     console.log("Word-level Confidence:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words detected");
 
     // Confidence filter
-    if (confidence < 70 && !retried) {
-  console.log("⚠️ Low confidence. Retrying with PSM 3...");
-  await worker.setParameters({ tessedit_pageseg_mode: '3' });
-  const resultRetry = await worker.recognize(optimizedBuffer);
-  return res.json({ text: resultRetry.data.text });
-}
+    if (confidence < 70) { // Temporarily lowered for debugging
+      return res.status(400).json({
+        error: '🧐 Low OCR confidence. Please try retaking the photo with better lighting and alignment.'
+      });
+    }
 
     // Clean raw OCR text
     let cleanedText = text
