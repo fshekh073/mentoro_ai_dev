@@ -8,8 +8,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 require('dotenv').config();
-const { createWorker } = require('tesseract.js');
+const { createWorker, OEM } = require('tesseract.js');
 const sharp = require('sharp');
+const cv = require('opencv4nodejs');
 const spell = require('spellchecker');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
@@ -601,47 +602,86 @@ Return only the corrected text.`;
   }
 }
 
-app.post('/api/ocr', authenticateToken, async (req, res) => {
-  const { image } = req.body;
+function preprocessWithOpenCV(buffer) {
+  const mat = cv.imdecode(buffer); // Read image buffer
 
-  if (!image) {
-    return res.status(400).json({ error: 'Image data is required.' });
-  }
+  const gray = mat.bgrToGray(); // Grayscale
+  const denoised = gray.gaussianBlur(new cv.Size(3, 3), 1.5); // Reduce noise
+  const contrasted = denoised.equalizeHist(); // Boost contrast
+  const thresholded = contrasted.adaptiveThreshold(
+    255,
+    cv.ADAPTIVE_THRESH_MEAN_C,
+    cv.THRESH_BINARY,
+    15,
+    10
+  ); // Binarize
 
-  if (!image.match(/^data:image\/(jpeg|png);base64,/)) {
-    return res.status(400).json({ error: 'Invalid image format. Only JPEG or PNG is supported.' });
-  }
+  return cv.imencode('.png', thresholded); // Return optimized PNG buffer
+}
 
-  let worker = null;
+function isImageBlurry(mat) {
+  const laplacian = mat.laplacian(cv.CV_64F);
+  const variance = laplacian.meanStdDev().std[0] ** 2;
+  return variance < 100; // Lower = blurrier
+}
 
+app.post('/api/ocr', upload.single('image'), async (req, res) => {
   try {
-    const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
+    const buffer = req.file.buffer;
 
-    // Enhance image quality
-    const optimizedBuffer = await sharp(buffer)
-	
-	.resize({ width: 1600, withoutEnlargement: true }) 
-	.grayscale()
-	.modulate({ brightness: 1.4, contrast: 1.7 }) 
-	.sharpen({ sigma: 1.0 }) 
-	.threshold(130)    
-	.normalize()
-	.toFormat('png')
-	.toBuffer();
+    // Load image into OpenCV matrix
+    const mat = cv.imdecode(buffer);
+    if (isImageBlurry(mat)) {
+      return res.status(400).json({
+        error: 'Image is too blurry. Please retake with better lighting/focus.',
+      });
+    }
 
-    // Initialize Tesseract worker
-    worker = await createWorker('eng', 1, {
+    // Preprocess image for OCR
+    const preprocessedBuffer = preprocessWithOpenCV(buffer);
+
+    // Initialize OCR
+    const worker = await createWorker('eng', 1, {
       langPath: path.join(__dirname, 'lang-data'),
-      oem: 1,
+      oem: OEM.LSTM_ONLY, // Use LSTM engine for better handwriting results
     });
 
     await worker.setParameters({
-      tessedit_pageseg_mode: '6', // Single block of text
-      user_defined_dpi: '500', // Standard DPI
+      tessedit_pageseg_mode: '6', // Block of text
+      user_defined_dpi: '500',
       preserve_interword_spaces: '1',
-     // tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // Uppercase and numbers
-   tessedit_char_blacklist: '|~`@#$%^&*()',
+      tessedit_char_blacklist: '|~`@#$%^&*()',
     });
+
+    const result = await worker.recognize(preprocessedBuffer);
+    const confidence = result.data.confidence;
+
+    // Retry logic if OCR confidence is low
+    if (confidence < 70) {
+      console.log('🔁 Low confidence, retrying with PSM 3...');
+      await worker.setParameters({ tessedit_pageseg_mode: '3' });
+      const retryResult = await worker.recognize(preprocessedBuffer);
+      await worker.terminate();
+
+      return res.json({
+        text: retryResult.data.text,
+        confidence: retryResult.data.confidence,
+        retried: true,
+      });
+    }
+
+    await worker.terminate();
+
+    return res.json({
+      text: result.data.text,
+      confidence,
+      retried: false,
+    });
+  } catch (error) {
+    console.error('OCR Error:', error);
+    return res.status(500).json({ error: 'OCR processing failed' });
+  }
+});
 
     // Run OCR
     const { data: { text, confidence, words } } = await worker.recognize(optimizedBuffer);
