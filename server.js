@@ -570,7 +570,8 @@ async function correctTextWithGPT(inputText) {
     return inputText;
   }
 
-  const prompt = `You are an intelligent AI assistant.
+  try {
+    const prompt = `You are an intelligent AI assistant.
 
 The following text was extracted from an image using OCR. It may contain:
 - Spelling mistakes
@@ -589,8 +590,14 @@ ${inputText}
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are an expert at cleaning OCR-extracted text and correcting spelling/contextual errors.' },
-        { role: 'user', content: prompt }
+        {
+          role: 'system',
+          content: 'You are an expert at cleaning OCR-extracted text and correcting spelling/contextual errors.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
       ],
       temperature: 0.2,
     }, {
@@ -602,9 +609,10 @@ ${inputText}
 
     const finalText = response.data.choices[0].message.content.trim();
     return finalText || inputText;
+
   } catch (error) {
     console.error("GPT OCR cleanup failed:", error.message);
-    return inputText; // Fallback to original
+    return inputText; // fallback
   }
 }
 
