@@ -621,14 +621,22 @@
             </h1>
           </div>
           {/* Main-content div removed */}
-          <div className="mission-section bg-green-50 p-8 rounded-3xl shadow-lg border border-green-200 text-center mission-pop-in">
-            <h2 className="text-3xl font-bold text-green-700 mb-4 flex items-center justify-center">
-              <span className="mr-3 text-4xl">💡</span> Our Mission
-            </h2>
-            <p className="text-green-800 text-xl leading-relaxed">
-              Empowering every student with personalized learning, making education accessible and engaging for all.
-            </p>
-          </div>
+          <div className="mission-section bg-green-50 p-8 rounded-3xl shadow-xl border border-green-200 text-center mission-pop-in mt-10 max-w-3xl mx-auto">
+  <h2 className="text-3xl font-bold text-green-700 mb-4 flex items-center justify-center gap-4">
+    <lottie-player
+      src="https://assets9.lottiefiles.com/packages/lf20_WSMGLifsum.json"
+      background="transparent"
+      speed="1"
+      style="width: 50px; height: 50px;"
+      loop
+      autoplay
+    ></lottie-player>
+    Empowering Students Through AI
+  </h2>
+  <p className="text-green-800 text-lg md:text-xl leading-relaxed">
+    Empowering every student with personalized learning, making education accessible and engaging for all.
+  </p>
+</div>
           <div className="form-section">
             {view === 'login' && <Login onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setView('signup')} />}
             {view === 'signup' && <Signup onSignupSuccess={handleSignupSuccess} onNavigateToLogin={() => setView('login')} />}
