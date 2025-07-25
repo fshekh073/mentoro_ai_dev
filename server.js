@@ -622,8 +622,9 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 	
 	.resize({ width: 1600, withoutEnlargement: true }) 
 	.grayscale()
-	.modulate({ brightness: 1.3, contrast: 1.6 }) 
+	.modulate({ brightness: 1.4, contrast: 1.7 }) 
 	.sharpen({ sigma: 1.0 }) 
+	.threshold(130)    
 	.normalize()
 	.toFormat('png')
 	.toBuffer();
@@ -636,9 +637,10 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
     await worker.setParameters({
       tessedit_pageseg_mode: '6', // Single block of text
-      user_defined_dpi: '450', // Standard DPI
+      user_defined_dpi: '500', // Standard DPI
       preserve_interword_spaces: '1',
      // tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // Uppercase and numbers
+   tessedit_char_blacklist: '|~`@#$%^&*()',
     });
 
     // Run OCR
@@ -648,11 +650,12 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     console.log("Word-level Confidence:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words detected");
 
     // Confidence filter
-    if (confidence < 70) { // Temporarily lowered for debugging
-      return res.status(400).json({
-        error: '🧐 Low OCR confidence. Please try retaking the photo with better lighting and alignment.'
-      });
-    }
+    if (confidence < 70 && !retried) {
+  console.log("⚠️ Low confidence. Retrying with PSM 3...");
+  await worker.setParameters({ tessedit_pageseg_mode: '3' });
+  const resultRetry = await worker.recognize(optimizedBuffer);
+  return res.json({ text: resultRetry.data.text });
+}
 
     // Clean raw OCR text
     let cleanedText = text
