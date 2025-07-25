@@ -499,6 +499,13 @@
     flex-direction: column !important;
     gap: 0.5rem !important;
   }
+@keyframes fade-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
 
   .action-buttons {
     flex-direction: column !important;
@@ -948,6 +955,10 @@
     return;
   }
 
+  // ✅ Show spinner popup
+  const spinner = document.getElementById("ocrSpinner");
+  if (spinner) spinner.classList.remove("hidden");
+
   setLoading(true);
   setShowOcrProgress(true);
   setOcrProgress(0);
@@ -957,6 +968,7 @@
     showCustomAlert('Authentication Error', 'You must be logged in to use OCR.');
     setLoading(false);
     setShowOcrProgress(false);
+    if (spinner) spinner.classList.add("hidden");
     return;
   }
 
@@ -991,6 +1003,9 @@
     setLoading(false);
     setShowOcrProgress(false);
     setOcrProgress(0);
+
+    // ✅ Hide spinner popup
+    if (spinner) spinner.classList.add("hidden");
   }
 };
 
@@ -1890,6 +1905,17 @@
   root.render(<App />);
 };
   </script>
+
+<!-- Spinner Popup shown during OCR -->
+<div id="ocrSpinner" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[10000] hidden">
+  <div class="bg-white rounded-xl p-6 shadow-2xl flex items-center gap-4 animate-fade-in">
+    <svg class="w-8 h-8 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+    </svg>
+    <p class="text-lg font-semibold text-gray-800">Extracting text from your image…</p>
+  </div>
+</div>
 </body>
 	
 </html>
