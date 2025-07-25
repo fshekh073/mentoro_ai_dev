@@ -632,8 +632,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   .resize({ width: 1600, withoutEnlargement: true })
   .grayscale()
   .modulate({ brightness: 1.5, contrast: 1.9 })     // Increase visibility
-  .sharpen({ sigma: 1.0, m1: 2.0, m2: 2.0 })         // Aggressively sharpen edges
-  .threshold(145)                                    // Make background white, text dark
+  .sharpen({ sigma: 1.0, m1: 2.0, m2: 2.0 })         // Aggressively sharpen edges  
   .normalize()
   .toFormat('png')
   .toBuffer();
