@@ -616,69 +616,46 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
+	
 
-    // ⛅ Step 1: Check brightness
-    const stats = await sharp(buffer).stats();
-    const brightness = stats.channels[0].mean;
+    // Enhance image quality
+    const optimizedBuffer = await sharp(buffer)
+	
+	.resize({ width: 1600, withoutEnlargement: true }) 
+	.grayscale()
+	.modulate({ brightness: 1.3, contrast: 1.6 }) 
+	.sharpen({ sigma: 1.0 }) 
+	.normalize()
+	.toFormat('png')
+	.toBuffer();
 
-    if (brightness < 15) {
+    // Initialize Tesseract worker
+    worker = await createWorker('eng', 1, {
+      langPath: path.join(__dirname, 'lang-data'),
+      oem: 1,
+    });
+
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6', // Single block of text
+      user_defined_dpi: '450', // Standard DPI
+      preserve_interword_spaces: '1',
+     // tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // Uppercase and numbers
+    });
+
+    // Run OCR
+    const { data: { text, confidence, words } } = await worker.recognize(optimizedBuffer);
+    console.log("Raw OCR Text:", text);
+    console.log("OCR Confidence:", confidence);
+    console.log("Word-level Confidence:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words detected");
+
+    // Confidence filter
+    if (confidence < 70) { // Temporarily lowered for debugging
       return res.status(400).json({
-        error: '⚠️ Image is too dark. Please retake the photo with better lighting.',
+        error: '🧐 Low OCR confidence. Please try retaking the photo with better lighting and alignment.'
       });
     }
 
-    // 🧪 Step 2: Image preprocessing
-    const optimizedBuffer = await sharp(buffer)
-      .resize({ width: 1600, withoutEnlargement: true })
-      .grayscale()
-      .linear(1.2, -10)
-      .modulate({ brightness: 1.7, contrast: 2.1, saturation: 0 })
-      .sharpen({ sigma: 1.2, m1: 3.0, m2: 2.5 })
-      .threshold(150)
-      .normalize()
-      .toFormat('png')
-      .toBuffer();
-
-    // 🤖 Step 3: Initialize Tesseract with tessdata_best model
-    worker = await createWorker('eng', 1, {
-      langPath: path.join(__dirname, 'lang-data'), // should contain 15–16 MB best model
-      oem: 1, // LSTM-only
-    });
-
-    await worker.loadLanguage('eng');     // ✅ REQUIRED to load your file
-    await worker.initialize('eng');       // ✅ REQUIRED to use it
-
-    await worker.setParameters({
-      tessedit_pageseg_mode: '6',         // block of text
-      user_defined_dpi: '500',
-      preserve_interword_spaces: '1',
-    });
-
-    // 📤 Step 4: First OCR attempt
-    let result = await worker.recognize(optimizedBuffer);
-    let { text, confidence, words } = result.data;
-
-    console.log("Raw OCR Text:", text);
-    console.log("OCR Confidence:", confidence);
-    console.log("Word Confidences:", words?.map(w => ({ text: w.text, confidence: w.confidence })));
-
-    // 🔁 Step 5: Retry if low confidence
-    if (confidence < 70) {
-      console.log("🔁 Low confidence. Retrying with PSM 12...");
-      await worker.setParameters({ tessedit_pageseg_mode: '12' }); // sparse text mode
-      result = await worker.recognize(optimizedBuffer);
-      text = result.data.text;
-      confidence = result.data.confidence;
-
-      if (confidence < 70) {
-        return res.status(400).json({
-          error: '🧐 OCR confidence too low after retry. Please ensure the text is well-lit and clear.',
-          confidence,
-        });
-      }
-    }
-
-    // 🧹 Step 6: Clean text
+    // Clean raw OCR text
     let cleanedText = text
       .replace(/[^\x00-\x7F]/g, "")
       .replace(/\s{2,}/g, " ")
@@ -688,28 +665,32 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     if (!cleanedText) {
       return res.status(400).json({ error: 'No clean text recognized after processing.' });
     }
+	
 
-    // ✅ Step 7: Spell correction
-    const wordsArray = cleanedText.split(/\s+/);
-    const correctedWords = wordsArray.map(word =>
-      spell.isMisspelled(word)
-        ? spell.getCorrectionsForMisspelling(word)[0] || word
-        : word
-    );
-    let correctedText = correctedWords.join(' ');
-    console.log("Spell-corrected Text:", correctedText);
 
-    // ✨ Step 8: GPT-based cleanup
-    const finalCorrectedText = await correctTextWithGPT(correctedText);
-    console.log("GPT Corrected Text:", finalCorrectedText);
+    // Spell correction
+const wordsArray = cleanedText.split(/\s+/);
+const correctedWords = wordsArray.map(word => {
+  if (spell.isMisspelled(word)) {
+    return spell.getCorrectionsForMisspelling(word)[0] || word;
+  }
+  return word;
+});
 
-    return res.json({ text: finalCorrectedText });
+let correctedText = correctedWords.join(' ');
+console.log("Spell-corrected OCR Text:", correctedText);
+
+// GPT-based context correction
+const finalCorrectedText = await correctTextWithGPT(correctedText);
+console.log("GPT Corrected OCR Text:", finalCorrectedText);
+
+return res.json({ text: finalCorrectedText });
 
   } catch (error) {
     console.error('OCR Error:', error.message, error.stack);
     return res.status(500).json({
       error: 'Failed to process OCR. Ensure the image contains clear text and good lighting.',
-      details: error.message,
+      details: error.message
     });
   } finally {
     if (worker) await worker.terminate();
