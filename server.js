@@ -617,23 +617,25 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 	
-	const stats = await sharp(buffer).stats();
-	const brightness = stats.channels[0].mean;
+	// ⛅ 1. Check if image is too dark
+const stats = await sharp(buffer).stats();
+const brightness = stats.channels[0].mean;
 
-	if (brightness < 20) {
-	return res.status(400).json({
-    error: '⚠️ Image is too dark. Please retake the photo with better lighting.'
+if (brightness < 15) {
+  return res.status(400).json({
+    error: '⚠️ Image is too dark. Please retake the photo with better lighting.',
   });
 }
 
     // Enhance image quality
     const optimizedBuffer = await sharp(buffer)
-	
-  .resize({ width: 1600, withoutEnlargement: true })
-  .grayscale()
-  .modulate({ brightness: 1.5, contrast: 1.9 })     // Increase visibility
-  .sharpen({ sigma: 1.0, m1: 2.0, m2: 2.0 })         // Aggressively sharpen edges  
-  .normalize()
+  .resize({ width: 1600, withoutEnlargement: true })         // Resize if too small
+  .grayscale()                                               // Convert to grayscale
+  .linear(1.2, -10)                                           // Adjust contrast (multiply + subtract)
+  .modulate({ brightness: 1.7, contrast: 2.1, saturation: 0 })// More visual boost
+  .sharpen({ sigma: 1.2, m1: 3.0, m2: 2.5 })                  // Heavily sharpen edges
+  .threshold(150)                                             // Clean background, isolate text
+  .normalize()                                                // Spread out histogram
   .toFormat('png')
   .toBuffer();
 
