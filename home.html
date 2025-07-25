@@ -1569,6 +1569,7 @@
                   </div>
                   <div className="cropper-preview"></div>
                   <div className="cropper-controls">
+			  
 		<MotionButton
   		onClick={() => {
    		 setCapturedImage(null);
@@ -1579,6 +1580,10 @@
 >
   🔁 Retake Picture
 </MotionButton>
+			  <MotionButton
+                      onClick={() => cropperRef.current.reset()}
+                      className="p-3 btn-secondary"
+                    >
                     
                       🔄 Reset
                     </MotionButton>
@@ -1592,7 +1597,7 @@
                   </div>
                 </MotionDiv>
               )}
-</div>
+
               <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
 
               {/* AI Tutor Avatar and Chat Bubble */}
