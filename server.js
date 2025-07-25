@@ -570,12 +570,21 @@ async function correctTextWithGPT(inputText) {
     return inputText;
   }
 
-  try {
-    const prompt = `The following text was extracted from an image using OCR and may contain spelling or formatting mistakes. Please correct it without changing the original meaning:
+  const prompt = `You are an intelligent AI assistant.
+
+The following text was extracted from an image using OCR. It may contain:
+- Spelling mistakes
+- Misrecognized or broken words (especially from handwriting)
+- Missing punctuation or formatting
+- Incomplete sentences due to OCR limitations
+
+Please carefully correct the text without changing its original meaning or tone.
+
+Only return the cleaned, corrected version:
 
 """
 ${inputText}
-"""
+"""`
 
 Return only the corrected text.`;
 
