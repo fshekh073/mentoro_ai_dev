@@ -580,13 +580,11 @@ The following text was extracted from an image using OCR. It may contain:
 
 Please carefully correct the text without changing its original meaning or tone.
 
-Only return the cleaned, corrected version:
+Only return the cleaned, corrected version.
 
 """
 ${inputText}
-"""`
-
-Return only the corrected text.`;
+"""`;
 
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
