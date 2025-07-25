@@ -360,8 +360,9 @@
   }
   .cropper-container-wrapper {
     position: relative;
-    max-width: 100%;
-    max-height: 500px;
+    max-width: 90vw;
+    max-height: 60vh;
+    height: auto;
     margin: 0 auto;
     border-radius: 15px;
     overflow: hidden;
@@ -896,7 +897,8 @@
         if (cropperRef.current) cropperRef.current.destroy();
         cropperRef.current = new Cropper(img, {
   viewMode: 2,
-  autoCropArea: 1,                // Crop entire image by default
+  autoCropArea: 0.8,                // Crop entire image by default
+  viewMode: 1,		
   responsive: true,
   movable: true,
   zoomable: true,
@@ -1507,7 +1509,7 @@
                       autoPlay
                       playsInline
                       muted
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain bg-black"
                       onError={(e) => {
                         console.error("Video element error:", e);
                         showCustomAlert("Video Error", "Failed to display camera feed.");
