@@ -1498,69 +1498,83 @@
               </div>
 
               {/* Camera and Cropping UI */}
-              {showCamera && (
-                <div className="fullscreen-camera flex flex-col">
-                  <div className="absolute top-4 left-4 right-4 text-white text-xs md:text-sm bg-black bg-opacity-50 p-3 rounded-lg">
-                    <p>📸 Tip: Ensure good lighting and focus on the text for better text extraction.</p>
-                  </div>
-                  <div className="camera-preview-wrapper max-w-[600px] w-full relative">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="rounded-xl border-4 border-white shadow-lg object-contain max-w-full max-h-[80vh] w-full sm:w-auto"
-                      onError={(e) => {
-                        console.error("Video element error:", e);
-                        showCustomAlert("Video Error", "Failed to display camera feed.");
-                      }}
-                    />
-			  <div className="absolute top-1/2 left-1/2 w-4/5 h-1/2 border-4 border-white border-dashed rounded-xl transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-			  
-                    {!isStreamActive && (
-                      <div className="absolute inset-0 flex items-center justify-center text-white">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                          <p>Initializing camera...</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="camera-controls">
-                    <button
-                      onClick={() => setShowCamera(false)}
-                      className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
-                    >
-                      ✕
-                    </button>
-                    <button
-                      onClick={captureImage}
-                      className="capture-btn"
-                      disabled={!isStreamActive}
-                    ></button>
-                    <label className="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setCapturedImage(event.target.result);
-                              setIsCropping(true);
-                              setShowCamera(false);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      📁
-                    </label>
-                  </div>
-                </div>
-              )}
+{showCamera && (
+  <div className="fullscreen-camera flex flex-col items-center justify-center p-4 bg-black bg-opacity-90 space-y-4">
+    
+    {/* Camera tip */}
+    <div className="text-white text-xs md:text-sm bg-black bg-opacity-50 px-4 py-2 rounded-lg w-full text-center max-w-[600px]">
+      📸 Tip: Ensure good lighting and focus on the text for better text extraction.
+    </div>
+
+    {/* Camera preview */}
+    <div className="camera-preview-wrapper max-w-[600px] w-full relative">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="rounded-xl border-4 border-white shadow-lg object-contain max-w-full max-h-[80vh] w-full sm:w-auto"
+        onError={(e) => {
+          console.error("Video element error:", e);
+          showCustomAlert("Video Error", "Failed to display camera feed.");
+        }}
+      />
+      {/* Scan overlay */}
+      <div className="absolute top-1/2 left-1/2 w-4/5 h-1/2 border-4 border-white border-dashed rounded-xl transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+
+      {!isStreamActive && (
+        <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-70">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Initializing camera...</p>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Controls just below preview */}
+    <div className="flex justify-center items-center gap-4 mt-4">
+      {/* Close */}
+      <button
+        onClick={() => setShowCamera(false)}
+        className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+      >
+        ✕
+      </button>
+
+      {/* Capture */}
+      <button
+        onClick={captureImage}
+        className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition"
+        disabled={!isStreamActive}
+      >
+        📷
+      </button>
+
+      {/* Upload */}
+      <label className="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition cursor-pointer">
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                setCapturedImage(event.target.result);
+                setIsCropping(true);
+                setShowCamera(false);
+              };
+              reader.readAsDataURL(file);
+            }
+          }}
+        />
+        📁
+      </label>
+    </div>
+  </div>
+)}
               {isCropping && capturedImage && (
                 <MotionDiv className="mt-6 bg-gray-100 p-6 rounded-xl shadow-inner border border-gray-200">
                   <p className="text-gray-700 font-semibold mb-4 playful-text">Adjust the crop area to focus on the text or formulas.</p>
