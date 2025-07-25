@@ -319,7 +319,7 @@
     right: 0;
     bottom: 0;
     z-index: 1000;
-    background: black;
+    background: rgba(0, 0, 0, 0.7);
   }
   .camera-controls {
     position: absolute;
@@ -1503,18 +1503,20 @@
                   <div className="absolute top-4 left-4 right-4 text-white text-xs md:text-sm bg-black bg-opacity-50 p-3 rounded-lg">
                     <p>📸 Tip: Ensure good lighting and focus on the text for better text extraction.</p>
                   </div>
-                  <div className="flex-1 relative">
+                  <div className="camera-preview-wrapper max-w-[600px] w-full relative">
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
                       muted
-                      className="absolute inset-0 w-full h-full object-contain bg-black"
+                      className="rounded-xl border-4 border-white shadow-lg object-contain max-w-full max-h-[80vh] w-full sm:w-auto"
                       onError={(e) => {
                         console.error("Video element error:", e);
                         showCustomAlert("Video Error", "Failed to display camera feed.");
                       }}
                     />
+			  <div className="absolute top-1/2 left-1/2 w-4/5 h-1/2 border-4 border-white border-dashed rounded-xl transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+			  
                     {!isStreamActive && (
                       <div className="absolute inset-0 flex items-center justify-center text-white">
                         <div className="text-center">
@@ -1567,22 +1569,17 @@
                   </div>
                   <div className="cropper-preview"></div>
                   <div className="cropper-controls">
-                    <MotionButton
-                      onClick={() => cropperRef.current.zoom(0.1)}
-                      className="p-3 btn-primary"
-                    >
-                      🔍 Zoom In
-                    </MotionButton>
-                    <MotionButton
-                      onClick={() => cropperRef.current.zoom(-0.1)}
-                      className="p-3 btn-primary"
-                    >
-                      🔎 Zoom Out
-                    </MotionButton>
-                    <MotionButton
-                      onClick={() => cropperRef.current.reset()}
-                      className="p-3 btn-secondary"
-                    >
+		<MotionButton
+  		onClick={() => {
+   		 setCapturedImage(null);
+    		setIsCropping(false);
+    		startCamera(); // This reopens the camera
+  		}}
+  		className="p-3 btn-secondary"
+>
+  🔁 Retake Picture
+</MotionButton>
+                    
                       🔄 Reset
                     </MotionButton>
                     <MotionButton
