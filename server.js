@@ -631,46 +631,60 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
-	
 
-    // Enhance image quality
-    const optimizedBuffer = await sharp(buffer)
-	
-	.resize({ width: 1600, withoutEnlargement: true }) 
-	.grayscale()
-	.modulate({ brightness: 1.3, contrast: 1.6 }) 
-	.sharpen({ sigma: 1.0 }) 
-	.normalize()
-	.toFormat('png')
-	.toBuffer();
+    // 🔧 Generate two versions: grayscale + color enhanced
+    const [grayBuffer, colorBuffer] = await Promise.all([
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .grayscale()
+        .modulate({ brightness: 1.3, contrast: 1.6 })
+        .sharpen()
+        .toFormat('png')
+        .toBuffer(),
 
-    // Initialize Tesseract worker
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 }) // Keep and enhance color
+        .sharpen()
+        .toFormat('png')
+        .toBuffer()
+    ]);
+
+    // 🧠 Create worker
     worker = await createWorker('eng', 1, {
       langPath: path.join(__dirname, 'lang-data'),
       oem: 1,
     });
 
     await worker.setParameters({
-      tessedit_pageseg_mode: '6', // Single block of text
-      user_defined_dpi: '450', // Standard DPI
+      tessedit_pageseg_mode: '6',
+      user_defined_dpi: '450',
       preserve_interword_spaces: '1',
-     // tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // Uppercase and numbers
     });
 
-    // Run OCR
-    const { data: { text, confidence, words } } = await worker.recognize(optimizedBuffer);
-    console.log("Raw OCR Text:", text);
-    console.log("OCR Confidence:", confidence);
-    console.log("Word-level Confidence:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words detected");
+    // 🕵️‍♂️ Run OCR on both versions
+    const [grayResult, colorResult] = await Promise.all([
+      worker.recognize(grayBuffer),
+      worker.recognize(colorBuffer)
+    ]);
 
-    // Confidence filter
-    if (confidence < 70) { // Temporarily lowered for debugging
+    // 🎯 Choose better result
+    const betterResult = (grayResult.data.confidence >= colorResult.data.confidence)
+      ? grayResult
+      : colorResult;
+
+    const { text, confidence, words } = betterResult.data;
+
+    console.log("OCR Confidence:", confidence);
+    console.log("Word-level:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words");
+
+    if (confidence < 70) {
       return res.status(400).json({
-        error: '🧐 Low OCR confidence. Please try retaking the photo with better lighting and alignment.'
+        error: '🧐 Low OCR confidence. Try better lighting and alignment.'
       });
     }
 
-    // Clean raw OCR text
+    // ✨ Clean raw OCR text
     let cleanedText = text
       .replace(/[^\x00-\x7F]/g, "")
       .replace(/\s{2,}/g, " ")
@@ -680,26 +694,24 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     if (!cleanedText) {
       return res.status(400).json({ error: 'No clean text recognized after processing.' });
     }
-	
 
+    // 🔍 Spell correction
+    const wordsArray = cleanedText.split(/\s+/);
+    const correctedWords = wordsArray.map(word => {
+      if (spell.isMisspelled(word)) {
+        return spell.getCorrectionsForMisspelling(word)[0] || word;
+      }
+      return word;
+    });
 
-    // Spell correction
-const wordsArray = cleanedText.split(/\s+/);
-const correctedWords = wordsArray.map(word => {
-  if (spell.isMisspelled(word)) {
-    return spell.getCorrectionsForMisspelling(word)[0] || word;
-  }
-  return word;
-});
+    let correctedText = correctedWords.join(' ');
+    console.log("Spell-corrected:", correctedText);
 
-let correctedText = correctedWords.join(' ');
-console.log("Spell-corrected OCR Text:", correctedText);
+    // 🤖 GPT contextual cleanup
+    const finalCorrectedText = await correctTextWithGPT(correctedText);
+    console.log("GPT-cleaned OCR Text:", finalCorrectedText);
 
-// GPT-based context correction
-const finalCorrectedText = await correctTextWithGPT(correctedText);
-console.log("GPT Corrected OCR Text:", finalCorrectedText);
-
-return res.json({ text: finalCorrectedText });
+    return res.json({ text: finalCorrectedText });
 
   } catch (error) {
     console.error('OCR Error:', error.message, error.stack);
