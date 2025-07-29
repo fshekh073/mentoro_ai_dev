@@ -370,21 +370,13 @@
   .cropper-container-wrapper {
     position: relative;
     max-width: 90vw;
-    max-height: 60vh;
+    max-height: 70vh;
     height: auto;
     margin: 0 auto;
     border-radius: 15px;
     overflow: hidden;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  }
-  .cropper-preview {
-    width: 250px;
-    height: 250px;
-    border: 3px solid #e5e7eb;
-    border-radius: 15px;
-    overflow: hidden;
-    margin: 1.5rem auto;
-  }
+  } 
   .cropper-controls {
     display: flex;
     justify-content: center;
@@ -394,6 +386,10 @@
     border-top: 1px solid #e5e7eb;
     border-radius: mets0 0 15px 15px;
   }
+
+body.cropping-active {
+  overflow: hidden !important;
+}
   /* Pulsating Microphone Animation */
   .mic-button {
     position: relative;
@@ -907,38 +903,42 @@
       tracks.forEach(track => track.stop());
     };
 
-    useEffect(() => {
-      if (capturedImage && isCropping) {
-        const img = document.getElementById('captured');
-        if (cropperRef.current) cropperRef.current.destroy();
-        cropperRef.current = new Cropper(img, {
-  viewMode: 2,
-  autoCropArea: 0.8,                // Crop entire image by default
-  viewMode: 1,		
-  responsive: true,
-  movable: true,
-  zoomable: true,
-  scalable: false,
-  rotatable: false,
-  dragMode: 'move',
-  cropBoxMovable: true,
-  cropBoxResizable: true,
-  guides: false,                 // Cleaner UI
-  background: false,
-  center: true,
-  highlight: false,
-  toggleDragModeOnDblclick: false,
-  preview: '.cropper-preview',
-  minContainerWidth: 300,
-  minContainerHeight: 300,
-  minCropBoxWidth: 50,
-  minCropBoxHeight: 50,
-});
-      }
-      return () => {
-        if (cropperRef.current) cropperRef.current.destroy();
-      };
-    }, [capturedImage, isCropping]);
+   useEffect(() => {
+  if (capturedImage && isCropping) {
+    // 🔒 Lock scroll when cropping starts
+    document.body.classList.add("cropping-active");
+
+    const img = document.getElementById('captured');
+    if (cropperRef.current) cropperRef.current.destroy();
+
+    cropperRef.current = new Cropper(img, {
+      viewMode: 1,
+      autoCropArea: 0.85,
+      responsive: true,
+      background: false,
+      center: true,
+      zoomOnWheel: false,
+      zoomOnTouch: false,
+      dragMode: 'crop',
+      zoomOnWheel: false,	    
+      toggleDragModeOnDblclick: false,
+      zoomOnTouch: false,
+      guides: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      minCropBoxWidth: 50,
+      minCropBoxHeight: 50,
+    });
+  }
+
+  // 🔁 Cleanup: when component unmounts or isCropping/capturedImage changes
+  return () => {
+    if (cropperRef.current) cropperRef.current.destroy();
+
+    // 🔓 Unlock scroll when cropper is removed
+    document.body.classList.remove("cropping-active");
+  };
+}, [capturedImage, isCropping]);
 
     const handleCropAndOCR = async () => {
   if (!cropperRef.current) return;
@@ -1604,8 +1604,7 @@
                   <p className="text-gray-700 font-semibold mb-4 playful-text">Adjust the crop area to focus on the text or formulas.</p>
                   <div className="cropper-container-wrapper">
                     <img id="captured" src={capturedImage} alt="Captured for cropping" className="max-w-full" />
-                  </div>
-                  <div className="cropper-preview"></div>
+                  </div>                  
                   <div className="cropper-controls">
 			  
 		<MotionButton
