@@ -820,51 +820,54 @@
     };
 
     const startCamera = async () => {
-      console.log("📷 startCamera() called");
-      try {
-        setShowCamera(true);
-        setIsStreamActive(false);
+  console.log("📷 startCamera() called");
+  try {
+    // 👇 Push a dummy state to trap the back button
+    window.history.pushState({ cameraOpen: true }, '', window.location.href);
 
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        };
+    setShowCamera(true);
+    setIsStreamActive(false);
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log("🎥 Camera stream acquired.");
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(err => {
-            console.error("Video play error:", err);
-            throw new Error("Failed to play video stream: " + err.message);
-          });
-          console.log("🎥 Camera stream started.");
-        } else {
-          throw new Error("Video element not found.");
-        }
-      } catch (error) {
-        console.error("Camera error:", error);
-        setShowCamera(false);
-        showCustomAlert("Camera Error", error.message);
+    const constraints = {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
     };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    console.log("🎥 Camera stream acquired.");
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play().catch(err => {
+        console.error("Video play error:", err);
+        throw new Error("Failed to play video stream: " + err.message);
+      });
+      console.log("🎥 Camera stream started.");
+    } else {
+      throw new Error("Video element not found.");
+    }
+  } catch (error) {
+    console.error("Camera error:", error);
+    setShowCamera(false);
+    showCustomAlert("Camera Error", error.message);
+  }
+};
 
     useEffect(() => {
   const video = videoRef.current;
 
-  // 🎯 Intercept browser back button while camera is open
+  // 🎯 Global popstate listener
   const handlePopState = (e) => {
-    if (showCamera) {
-      e.preventDefault();
-      console.log("🔙 Back button pressed while camera open");
+    // If camera is open, close it on back
+    if (showCamera || e.state?.cameraOpen) {
+      console.log("🔙 Android back detected — closing camera");
       setShowCamera(false);
 
-      // Push current state back to prevent forward navigation
-      window.history.pushState(null, '', window.location.href);
+      // Push state again to prevent leaving page
+      window.history.pushState({}, '', window.location.href);
     }
   };
 
@@ -874,13 +877,11 @@
       setIsStreamActive(true);
     };
 
-    // Start listening
     video.addEventListener('playing', handleStreamReady);
     video.addEventListener('loadedmetadata', handleStreamReady);
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      // Stop listeners
       video.removeEventListener('playing', handleStreamReady);
       video.removeEventListener('loadedmetadata', handleStreamReady);
       window.removeEventListener('popstate', handlePopState);
@@ -897,7 +898,7 @@
     };
   }
 }, [showCamera]);
-
+	  
     const captureImage = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
