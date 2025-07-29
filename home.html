@@ -385,11 +385,8 @@
     background: #f9fafb;
     border-top: 1px solid #e5e7eb;
     border-radius: mets0 0 15px 15px;
-  }
+  }	
 
-body.cropping-active {
-  overflow: hidden !important;
-}
   /* Pulsating Microphone Animation */
   .mic-button {
     position: relative;
@@ -857,35 +854,49 @@ body.cropping-active {
     };
 
     useEffect(() => {
-      if (showCamera && videoRef.current) {
-        const video = videoRef.current;
-        const handleStreamReady = () => {
-          console.log("🎥 Video stream is ready (playing)");
-          setIsStreamActive(true);
-        };
+  const video = videoRef.current;
 
-        video.addEventListener('playing', handleStreamReady);
-        video.addEventListener('loadedmetadata', () => {
-          console.log("🎥 Video metadata loaded");
-          if (videoRef.current?.srcObject?.active) {
-            setIsStreamActive(true);
-          }
-        });
+  // 🎯 Intercept browser back button while camera is open
+  const handlePopState = (e) => {
+    if (showCamera) {
+      e.preventDefault();
+      console.log("🔙 Back button pressed while camera open");
+      setShowCamera(false);
 
-        return () => {
-          video.removeEventListener('playing', handleStreamReady);
-          video.removeEventListener('loadedmetadata', handleStreamReady);
-          if (video.srcObject) {
-            const stream = video.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
-            video.srcObject = null;
-            console.log("📷 Camera stream stopped.");
-            setIsStreamActive(false);
-          }
-        };
+      // Push current state back to prevent forward navigation
+      window.history.pushState(null, '', window.location.href);
+    }
+  };
+
+  if (showCamera && video) {
+    const handleStreamReady = () => {
+      console.log("🎥 Video stream is ready (playing)");
+      setIsStreamActive(true);
+    };
+
+    // Start listening
+    video.addEventListener('playing', handleStreamReady);
+    video.addEventListener('loadedmetadata', handleStreamReady);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      // Stop listeners
+      video.removeEventListener('playing', handleStreamReady);
+      video.removeEventListener('loadedmetadata', handleStreamReady);
+      window.removeEventListener('popstate', handlePopState);
+
+      // Stop camera stream
+      if (video.srcObject) {
+        const stream = video.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+        video.srcObject = null;
+        console.log("📷 Camera stream stopped.");
+        setIsStreamActive(false);
       }
-    }, [showCamera]);
+    };
+  }
+}, [showCamera]);
 
     const captureImage = () => {
       const video = videoRef.current;
@@ -904,9 +915,7 @@ body.cropping-active {
     };
 
    useEffect(() => {
-  if (capturedImage && isCropping) {
-    // 🔒 Lock scroll when cropping starts
-    document.body.classList.add("cropping-active");
+  if (capturedImage && isCropping) {    
 
     const img = document.getElementById('captured');
     if (cropperRef.current) cropperRef.current.destroy();
@@ -934,9 +943,7 @@ body.cropping-active {
   // 🔁 Cleanup: when component unmounts or isCropping/capturedImage changes
   return () => {
     if (cropperRef.current) cropperRef.current.destroy();
-
-    // 🔓 Unlock scroll when cropper is removed
-    document.body.classList.remove("cropping-active");
+    
   };
 }, [capturedImage, isCropping]);
 
