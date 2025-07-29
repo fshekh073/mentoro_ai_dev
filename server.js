@@ -619,21 +619,17 @@ ${inputText}
 app.post('/api/ocr', authenticateToken, async (req, res) => {
   const { image } = req.body;
 
-  if (!image) {
-    return res.status(400).json({ error: 'Image data is required.' });
-  }
-
-  if (!image.match(/^data:image\/(jpeg|png);base64,/)) {
+  if (!image) return res.status(400).json({ error: 'Image data is required.' });
+  if (!image.match(/^data:image\/(jpeg|png);base64,/))
     return res.status(400).json({ error: 'Invalid image format. Only JPEG or PNG is supported.' });
-  }
 
   let worker = null;
 
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 
-    // 🔧 Generate two versions: grayscale + color enhanced
-    const [grayBuffer, colorBuffer] = await Promise.all([
+    // ✅ Preprocess 3 versions: grayscale, color-boost, handwriting-boost
+    const [grayBuffer, colorBuffer, handwritingBuffer] = await Promise.all([
       sharp(buffer)
         .resize({ width: 1600, withoutEnlargement: true })
         .grayscale()
@@ -644,8 +640,15 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
       sharp(buffer)
         .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 }) // Keep and enhance color
+        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
         .sharpen()
+        .toFormat('png')
+        .toBuffer(),
+
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 }) // Boost ink stroke
+        .sharpen({ sigma: 1.2 })
         .toFormat('png')
         .toBuffer()
     ]);
@@ -657,35 +660,39 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     });
 
     await worker.setParameters({
-      tessedit_pageseg_mode: '6',
+      tessedit_pageseg_mode: '11', // Sparse text – better for handwriting
       user_defined_dpi: '450',
       preserve_interword_spaces: '1',
     });
 
-    // 🕵️‍♂️ Run OCR on both versions
-    const [grayResult, colorResult] = await Promise.all([
+    // 🧪 Run OCR on all versions
+    const [grayResult, colorResult, handwritingResult] = await Promise.all([
       worker.recognize(grayBuffer),
-      worker.recognize(colorBuffer)
+      worker.recognize(colorBuffer),
+      worker.recognize(handwritingBuffer),
     ]);
 
-    // 🎯 Choose better result
-    const betterResult = (grayResult.data.confidence >= colorResult.data.confidence)
-      ? grayResult
-      : colorResult;
+    const results = [
+      { type: 'gray', ...grayResult.data },
+      { type: 'color', ...colorResult.data },
+      { type: 'handwriting', ...handwritingResult.data },
+    ];
 
-    const { text, confidence, words } = betterResult.data;
+    // 🥇 Pick best based on confidence and length
+    results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
+    const best = results[0];
 
-    console.log("OCR Confidence:", confidence);
-    console.log("Word-level:", words ? words.map(w => ({ text: w.text, confidence: w.confidence })) : "No words");
+    console.log("Best OCR Type:", best.type);
+    console.log("OCR Confidence:", best.confidence);
 
-    if (confidence < 70) {
+    if (best.confidence < 70 || !best.text.trim()) {
       return res.status(400).json({
-        error: '🧐 Low OCR confidence. Try better lighting and alignment.'
+        error: '🧐 Low OCR confidence. Try again with better lighting and alignment.'
       });
     }
 
-    // ✨ Clean raw OCR text
-    let cleanedText = text
+    // 🧹 Clean text
+    let cleanedText = best.text
       .replace(/[^\x00-\x7F]/g, "")
       .replace(/\s{2,}/g, " ")
       .replace(/[-\u001F]+/g, " ")
@@ -695,7 +702,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'No clean text recognized after processing.' });
     }
 
-    // 🔍 Spell correction
+    // ✅ Spell correction
     const wordsArray = cleanedText.split(/\s+/);
     const correctedWords = wordsArray.map(word => {
       if (spell.isMisspelled(word)) {
