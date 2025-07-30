@@ -565,37 +565,38 @@ For each topic/day, write:
       }
     });
 
-    // 🧠 Collect Stream
+    // 🧠 Collect Streamed Output
     let streamedContent = '';
-const decoder = new TextDecoder('utf-8');
+    const decoder = new TextDecoder('utf-8');
 
-await new Promise((resolve, reject) => {
-  response.data.on('data', (chunk) => {
-    const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+    await new Promise((resolve, reject) => {
+      response.data.on('data', (chunk) => {
+        const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
 
-    for (const line of lines) {
-      if (line.startsWith('data:')) {
-        const json = line.replace(/^data:\s*/, '');
-        if (json === '[DONE]') {
-          resolve();
-          return;
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const json = line.replace(/^data:\s*/, '');
+            if (json === '[DONE]') {
+              resolve();
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(json);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) streamedContent += delta;
+            } catch (err) {
+              console.error("❌ JSON parse error in stream:", err.message, line);
+            }
+          }
         }
+      });
 
-        try {
-          const parsed = JSON.parse(json);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) streamedContent += delta;
-        } catch (err) {
-          console.error("❌ JSON parse error in stream:", err.message, line);
-        }
-      }
-    }
-  });
+      response.data.on('end', resolve);
+      response.data.on('error', reject);
+    });
 
-  response.data.on('end', resolve);
-  response.data.on('error', reject);
-});
-
+    // ✅ Format & Return Final Result
     const formattedPlan = formatResponse(streamedContent, studentGrade);
 
     if (!streamedContent) {
@@ -610,20 +611,6 @@ await new Promise((resolve, reject) => {
     res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
   }
 });
-  
-  const formattedPlan = formatResponse(streamedContent, studentGrade);
-
-  if (!streamedContent) {
-    console.error("⚠️ OpenAI stream returned empty content");
-    return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
-  }
-
-  res.json({ personalizedPlan: formattedPlan });
-
-} catch (error) {
-  console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
-  res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
-}
 
 async function correctTextWithGPT(inputText) {
   if (!process.env.OPENAI_API_KEY) {
