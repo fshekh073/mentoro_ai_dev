@@ -15,6 +15,8 @@ const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 // const { Configuration, OpenAIApi } = require('openai');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const { exec } = require('child_process');
+const fs = require('fs');
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -514,6 +516,58 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
         });
       }
     }
+
+app.post('/api/execute-code', async (req, res) => {
+  const { language, code } = req.body;
+
+  if (!language || !code) {
+    return res.status(400).json({ error: 'Language and code are required' });
+  }
+
+  const tempDir = path.join(__dirname, 'temp');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+  let filePath = '';
+  let command = '';
+
+  try {
+    switch (language) {
+      case 'python':
+        filePath = path.join(tempDir, 'code.py');
+        fs.writeFileSync(filePath, code);
+        command = `python3 "${filePath}"`;
+        break;
+
+      case 'c':
+        filePath = path.join(tempDir, 'code.c');
+        const cBinary = path.join(tempDir, 'c_exec');
+        fs.writeFileSync(filePath, code);
+        command = `gcc "${filePath}" -o "${cBinary}" && "${cBinary}"`;
+        break;
+
+      case 'cpp':
+        filePath = path.join(tempDir, 'code.cpp');
+        const cppBinary = path.join(tempDir, 'cpp_exec');
+        fs.writeFileSync(filePath, code);
+        command = `g++ "${filePath}" -o "${cppBinary}" && "${cppBinary}"`;
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Unsupported language' });
+    }
+
+    exec(command, { timeout: 5000 }, (err, stdout, stderr) => {
+      if (err) {
+        return res.json({ output: stderr || err.message });
+      }
+      return res.json({ output: stdout });
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Execution error' });
+  }
+});
 
     // ✅ Build prompt
     const prompt = buildPersonalizedPlanPrompt(weakTopics, studentGrade, studentLanguage);
