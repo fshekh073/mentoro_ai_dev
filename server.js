@@ -567,26 +567,34 @@ For each topic/day, write:
 
     // 🧠 Collect Stream
     let streamedContent = '';
-    const decoder = new TextDecoder('utf-8');
+const decoder = new TextDecoder('utf-8');
 
-    for await (const chunk of response.data) {
-      const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+await new Promise((resolve, reject) => {
+  response.data.on('data', (chunk) => {
+    const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
 
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const json = line.replace(/^data:\s*/, '');
-          if (json === '[DONE]') break;
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        const json = line.replace(/^data:\s*/, '');
+        if (json === '[DONE]') {
+          resolve();
+          return;
+        }
 
-          try {
-            const parsed = JSON.parse(json);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) streamedContent += delta;
-          } catch (err) {
-            console.error("❌ JSON parse error in stream:", err.message, line);
-          }
+        try {
+          const parsed = JSON.parse(json);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) streamedContent += delta;
+        } catch (err) {
+          console.error("❌ JSON parse error in stream:", err.message, line);
         }
       }
     }
+  });
+
+  response.data.on('end', resolve);
+  response.data.on('error', reject);
+});
 
     const formattedPlan = formatResponse(streamedContent, studentGrade);
 
