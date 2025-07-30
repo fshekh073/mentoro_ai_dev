@@ -831,6 +831,45 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
       }
     }
 
+app.post('/api/explain-coding-topic', async (req, res) => {
+  const { language, topic } = req.body;
+
+  if (!language || !topic) {
+    return res.status(400).json({ error: 'Missing language or topic' });
+  }
+
+  const prompt = `
+  Explain the topic "${topic}" in ${language} to a class 6-8 student.
+  Use simple, kid-friendly language (max 4 lines).
+  Include a short working code example (1–3 lines).
+  
+  Format:
+  Explanation: <brief explanation>
+  Code: <short working code>
+  `;
+
+  try {
+    const chatResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.5,
+    });
+
+    const content = chatResponse.choices[0].message.content;
+
+    // Split response into explanation and code
+    const match = content.match(/Explanation:(.*?)(?:\\n)?Code:(.*)/s);
+    const explanation = match?.[1]?.trim() || content;
+    const code = match?.[2]?.trim() || '';
+
+    res.json({ explanation, code });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to get explanation from GPT' });
+  }
+});
+
     // ✅ 2. Build prompt and call OpenAI
     const prompt = buildExplanationPrompt(question, grade, language, role);
 
