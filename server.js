@@ -581,42 +581,64 @@ app.post('/api/execute-code', async (req, res) => {
     console.log("✅ Personalized Plan Prompt:", prompt);
 
     // 🔐 OpenAI API call
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.7
-    }, {
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
+   try {
+  const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
+      },
+      {
+        role: 'user',
+        content: prompt
       }
-    });
-
-    const personalizedPlanContent = response.data.choices?.[0]?.message?.content;
-	const formattedPlan = formatResponse(personalizedPlanContent, studentGrade);
-
-    if (!personalizedPlanContent) {
-      console.error("⚠️ OpenAI API returned empty content:", response.data);
-      return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
+    ],
+    temperature: 0.7,
+    stream: true
+  }, {
+    responseType: 'stream',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
     }
+  });
 
-    // ✅ Send to client
-    res.json({ personalizedPlan: formattedPlan });
+  let streamedContent = '';
+  const decoder = new TextDecoder('utf-8');
 
-  } catch (error) {
-    console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
+  for await (const chunk of response.data) {
+    const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        const json = line.replace(/^data:\s*/, '');
+        if (json === '[DONE]') break;
+
+        try {
+          const parsed = JSON.parse(json);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) streamedContent += delta;
+        } catch (err) {
+          console.error("❌ JSON parse error in stream:", err.message, line);
+        }
+      }
+    }
   }
-});
+
+  const formattedPlan = formatResponse(streamedContent, studentGrade);
+
+  if (!streamedContent) {
+    console.error("⚠️ OpenAI stream returned empty content");
+    return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
+  }
+
+  res.json({ personalizedPlan: formattedPlan });
+
+} catch (error) {
+  console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
+  res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
+}
 
 async function correctTextWithGPT(inputText) {
   if (!process.env.OPENAI_API_KEY) {
