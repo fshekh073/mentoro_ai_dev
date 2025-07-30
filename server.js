@@ -474,11 +474,14 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   const studentLanguage = req.body.language || "English";
 
   if (!user_id || !studentGrade) {
-    return res.status(400).json({ error: 'User ID and student grade are required for personalized plan.' });
+    return res.status(400).json({ error: 'User ID and student grade are required.' });
   }
 
   try {
-    // 🔄 Start Supabase fetch early (parallel)
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
     const fetchActivities = axios.get(
       `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
       {
@@ -489,19 +492,17 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
       }
     );
 
-    // 🧠 Prepare tone + language prompt bits in parallel
     const tone = getToneForClass(studentGrade);
     const { langInstruction } = getLanguageInstructions(studentLanguage);
 
-    // 🔄 Wait for activities
     const { data: activities, error } = await fetchActivities;
 
     if (error) {
-      console.error('Supabase fetch activities for plan error:', error);
-      return res.status(500).json({ error: 'Failed to fetch student activities for personalized plan.' });
+      res.write(`data: ${JSON.stringify({ error: 'Failed to fetch activities' })}\n\n`);
+      res.end();
+      return;
     }
 
-    // 🧠 Calculate weak topics
     const topicScores = {};
     activities.forEach(activity => {
       if (!topicScores[activity.question]) {
@@ -519,7 +520,6 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
       }
     }
 
-    // 📝 Debloated prompt
     const topicsBlock = weakTopics.length
       ? `Here are weak topics for a ${studentGrade} student:\n${weakTopics.join('\n')}`
       : `No weak topics found. Generate a generic 5-day revision plan for ${studentGrade} students.`;
@@ -542,18 +542,11 @@ For each topic/day, write:
 - Space out days clearly
 `.trim();
 
-    // 🔥 GPT-4o Streamed Request
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
-        {
-          role: 'system',
-          content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
+        { role: 'system', content: 'You are a personalized AI tutor. Format with markdown, emojis, and clear sections for mobile readability.' },
+        { role: 'user', content: prompt }
       ],
       temperature: 0.7,
       stream: true
@@ -565,50 +558,47 @@ For each topic/day, write:
       }
     });
 
-    // 🧠 Collect Streamed Output
-    let streamedContent = '';
     const decoder = new TextDecoder('utf-8');
 
-    await new Promise((resolve, reject) => {
-      response.data.on('data', (chunk) => {
-        const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+    response.data.on('data', (chunk) => {
+      const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+      for (const line of lines) {
+        if (line.startsWith('data:')) {
+          const json = line.replace(/^data:\s*/, '');
+          if (json === '[DONE]') {
+            res.write(`event: done\ndata: [DONE]\n\n`);
+            res.end();
+            return;
+          }
 
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const json = line.replace(/^data:\s*/, '');
-            if (json === '[DONE]') {
-              resolve();
-              return;
+          try {
+            const parsed = JSON.parse(json);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              // send each chunk as it comes
+              res.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
             }
-
-            try {
-              const parsed = JSON.parse(json);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) streamedContent += delta;
-            } catch (err) {
-              console.error("❌ JSON parse error in stream:", err.message, line);
-            }
+          } catch (err) {
+            console.error("Stream parse error:", err.message);
           }
         }
-      });
-
-      response.data.on('end', resolve);
-      response.data.on('error', reject);
+      }
     });
 
-    // ✅ Format & Return Final Result
-    const formattedPlan = formatResponse(streamedContent, studentGrade);
+    response.data.on('end', () => {
+      res.end();
+    });
 
-    if (!streamedContent) {
-      console.error("⚠️ Streamed OpenAI response was empty");
-      return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
-    }
-
-    res.json({ personalizedPlan: formattedPlan });
+    response.data.on('error', (err) => {
+      console.error('Stream error:', err.message);
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+      res.end();
+    });
 
   } catch (error) {
-    console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
+    console.error("Catch error:", error.message);
+    res.write(`data: ${JSON.stringify({ error: 'Internal server error' })}\n\n`);
+    res.end();
   }
 });
 
