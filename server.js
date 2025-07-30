@@ -478,8 +478,8 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   }
 
   try {
-    // Fetch student’s past activities
-    const { data: activities, error } = await axios.get(
+    // 🔄 Start Supabase fetch early (parallel)
+    const fetchActivities = axios.get(
       `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
       {
         headers: {
@@ -489,16 +489,23 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
       }
     );
 
+    // 🧠 Prepare tone + language prompt bits in parallel
+    const tone = getToneForClass(studentGrade);
+    const { langInstruction } = getLanguageInstructions(studentLanguage);
+
+    // 🔄 Wait for activities
+    const { data: activities, error } = await fetchActivities;
+
     if (error) {
       console.error('Supabase fetch activities for plan error:', error);
       return res.status(500).json({ error: 'Failed to fetch student activities for personalized plan.' });
     }
 
-    // Identify weak topics (avg score ≤ 2)
+    // 🧠 Calculate weak topics
     const topicScores = {};
     activities.forEach(activity => {
       if (!topicScores[activity.question]) {
-        topicScores[activity.question] = { totalScore: 0, count: 0, grade: activity.grade, language: activity.language };
+        topicScores[activity.question] = { totalScore: 0, count: 0 };
       }
       topicScores[activity.question].totalScore += activity.quiz_score;
       topicScores[activity.question].count += 1;
@@ -508,102 +515,93 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
     for (const topic in topicScores) {
       const avgScore = topicScores[topic].totalScore / topicScores[topic].count;
       if (avgScore <= 2) {
-        weakTopics.push({
-          question: topic,
-          score: Number.isFinite(avgScore) ? Math.round(avgScore) : 0,
-          grade: topicScores[topic].grade,
-          language: topicScores[topic].language
-        });
+        weakTopics.push(`- ${topic} (avg score: ${Math.round(avgScore)}/3)`);
       }
     }
 
-app.post('/api/execute-code', async (req, res) => {
-  const { language, code } = req.body;
+    // 📝 Debloated prompt
+    const topicsBlock = weakTopics.length
+      ? `Here are weak topics for a ${studentGrade} student:\n${weakTopics.join('\n')}`
+      : `No weak topics found. Generate a generic 5-day revision plan for ${studentGrade} students.`;
 
-  if (!language || !code) {
-    return res.status(400).json({ error: 'Language and code are required' });
-  }
+    const prompt = `
+${topicsBlock}
 
-  const tempDir = path.join(__dirname, 'temp');
-  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+🎯 Your task:
+For each topic/day, write:
+- Short explanation of difficulty
+- 3–5 step improvement plan using reading/videos/practice
+- 1 key resource (e.g., NCERT or free video)
+- 1 MCQ (mark correct with *)
+- 1 fun tip
 
-  let filePath = '';
-  let command = '';
+💡 Format:
+- Use markdown and emojis
+- Friendly tone: ${tone}
+- Language: ${langInstruction}
+- Space out days clearly
+`.trim();
 
-  try {
-    switch (language) {
-      case 'python':
-        filePath = path.join(tempDir, 'code.py');
-        fs.writeFileSync(filePath, code);
-        command = `python3 "${filePath}"`;
-        break;
-
-      case 'c':
-        filePath = path.join(tempDir, 'code.c');
-        const cBinary = path.join(tempDir, 'c_exec');
-        fs.writeFileSync(filePath, code);
-        command = `gcc "${filePath}" -o "${cBinary}" && "${cBinary}"`;
-        break;
-
-      case 'cpp':
-        filePath = path.join(tempDir, 'code.cpp');
-        const cppBinary = path.join(tempDir, 'cpp_exec');
-        fs.writeFileSync(filePath, code);
-        command = `g++ "${filePath}" -o "${cppBinary}" && "${cppBinary}"`;
-        break;
-
-      default:
-        return res.status(400).json({ error: 'Unsupported language' });
-    }
-
-    exec(command, { timeout: 5000 }, (err, stdout, stderr) => {
-      if (err) {
-        return res.json({ output: stderr || err.message });
+    // 🔥 GPT-4o Streamed Request
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      stream: true
+    }, {
+      responseType: 'stream',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
       }
-      return res.json({ output: stdout });
     });
 
+    // 🧠 Collect Stream
+    let streamedContent = '';
+    const decoder = new TextDecoder('utf-8');
+
+    for await (const chunk of response.data) {
+      const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        if (line.startsWith('data:')) {
+          const json = line.replace(/^data:\s*/, '');
+          if (json === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(json);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) streamedContent += delta;
+          } catch (err) {
+            console.error("❌ JSON parse error in stream:", err.message, line);
+          }
+        }
+      }
+    }
+
+    const formattedPlan = formatResponse(streamedContent, studentGrade);
+
+    if (!streamedContent) {
+      console.error("⚠️ Streamed OpenAI response was empty");
+      return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
+    }
+
+    res.json({ personalizedPlan: formattedPlan });
+
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Execution error' });
+    console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
   }
 });
-
-    // ✅ Build prompt
-    const prompt = buildPersonalizedPlanPrompt(weakTopics, studentGrade, studentLanguage);
-
-    // ✅ Sanity check
-    if (!prompt || typeof prompt !== 'string') {
-      console.error("❌ Invalid prompt generated:", prompt);
-      return res.status(500).json({ error: "AI prompt generation failed. Please check inputs." });
-    }
-
-    console.log("✅ Personalized Plan Prompt:", prompt);
-
-    // 🔐 OpenAI API call
-   try {
-  const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    temperature: 0.7,
-    stream: true
-  }, {
-    responseType: 'stream',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-
   let streamedContent = '';
   const decoder = new TextDecoder('utf-8');
 
