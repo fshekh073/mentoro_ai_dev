@@ -476,57 +476,60 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   }
 
   try {
-    // Fetch student’s past activities
-    const { data: activities, error } = await axios.get(
-      `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
-      {
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        }
+    const supabaseHeaders = {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
-    );
+    };
 
-    if (error) {
-      console.error('Supabase fetch activities for plan error:', error);
-      return res.status(500).json({ error: 'Failed to fetch student activities for personalized plan.' });
-    }
+    // Fetch activities and build prompt in parallel
+    const [activitiesResponse] = await Promise.all([
+      axios.get(
+        `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
+        supabaseHeaders
+      )
+    ]);
 
-    // Identify weak topics (avg score ≤ 2)
+    const activities = activitiesResponse.data;
+
+    // Weak topic computation
     const topicScores = {};
     activities.forEach(activity => {
-      if (!topicScores[activity.question]) {
-        topicScores[activity.question] = { totalScore: 0, count: 0, grade: activity.grade, language: activity.language };
+      const key = activity.question;
+      if (!topicScores[key]) {
+        topicScores[key] = {
+          totalScore: 0,
+          count: 0,
+          grade: activity.grade,
+          language: activity.language
+        };
       }
-      topicScores[activity.question].totalScore += activity.quiz_score;
-      topicScores[activity.question].count += 1;
+      topicScores[key].totalScore += activity.quiz_score;
+      topicScores[key].count += 1;
     });
 
     const weakTopics = [];
     for (const topic in topicScores) {
-      const avgScore = topicScores[topic].totalScore / topicScores[topic].count;
-      if (avgScore <= 2) {
+      const avg = topicScores[topic].totalScore / topicScores[topic].count;
+      if (avg <= 2) {
         weakTopics.push({
           question: topic,
-          score: Number.isFinite(avgScore) ? Math.round(avgScore) : 0,
+          score: Math.round(avg),
           grade: topicScores[topic].grade,
           language: topicScores[topic].language
         });
       }
     }
 
-    // ✅ Build prompt
     const prompt = buildPersonalizedPlanPrompt(weakTopics, studentGrade, studentLanguage);
 
-    // ✅ Sanity check
     if (!prompt || typeof prompt !== 'string') {
       console.error("❌ Invalid prompt generated:", prompt);
       return res.status(500).json({ error: "AI prompt generation failed. Please check inputs." });
     }
 
-    console.log("✅ Personalized Plan Prompt:", prompt);
-
-    // 🔐 OpenAI API call
+    // OpenAI call
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
@@ -548,18 +551,17 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
     });
 
     const personalizedPlanContent = response.data.choices?.[0]?.message?.content;
-	const formattedPlan = formatResponse(personalizedPlanContent, studentGrade);
+    const formattedPlan = formatResponse(personalizedPlanContent, studentGrade);
 
     if (!personalizedPlanContent) {
       console.error("⚠️ OpenAI API returned empty content:", response.data);
       return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
     }
 
-    // ✅ Send to client
     res.json({ personalizedPlan: formattedPlan });
 
   } catch (error) {
-    console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
+    console.error('Personalized Plan Error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
   }
 });
