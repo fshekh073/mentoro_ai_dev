@@ -15,8 +15,6 @@ const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 // const { Configuration, OpenAIApi } = require('openai');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-const { exec } = require('child_process');
-const fs = require('fs');
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -468,20 +466,18 @@ app.get('/api/student-activities', authenticateToken, async (req, res) => {
   }
 });
 
-// Replace the existing /api/personalized-plan endpoint in server.js with this fixed version:
-
 app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   const user_id = req.user?.id;
   const studentGrade = req.user?.class || "Class 8";
   const studentLanguage = req.body.language || "English";
 
   if (!user_id || !studentGrade) {
-    return res.status(400).json({ error: 'User ID and student grade are required.' });
+    return res.status(400).json({ error: 'User ID and student grade are required for personalized plan.' });
   }
 
   try {
-    // Fetch activities first
-    const response = await axios.get(
+    // Fetch student’s past activities
+    const { data: activities, error } = await axios.get(
       `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
       {
         headers: {
@@ -491,50 +487,16 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
       }
     );
 
-    const activities = response.data;
-
-    if (!activities || activities.length === 0) {
-      return res.json({ 
-        personalizedPlan: `
-# 📚 Welcome to Your Learning Journey!
-
-Since you haven't taken any quizzes yet, here's a general study plan for ${studentGrade}:
-
-## 🗓 Day 1: Mathematics Fundamentals
-- **📘 Focus**: Basic arithmetic and problem-solving
-- **✅ Activities**: Practice 10 problems daily
-- **💡 Tip**: Start with easier problems and gradually increase difficulty
-
-## 🗓 Day 2: Science Concepts
-- **📘 Focus**: Basic scientific principles
-- **✅ Activities**: Read one chapter from NCERT
-- **💡 Tip**: Make notes of key concepts
-
-## 🗓 Day 3: Language Skills
-- **📘 Focus**: Reading and comprehension
-- **✅ Activities**: Read one story or article
-- **💡 Tip**: Summarize what you read
-
-## 🗓 Day 4: Social Studies
-- **📘 Focus**: History and geography basics
-- **✅ Activities**: Learn about your local area
-- **💡 Tip**: Connect history with current events
-
-## 🗓 Day 5: Review and Practice
-- **📘 Focus**: Revision of all subjects
-- **✅ Activities**: Take practice quizzes
-- **💡 Tip**: Focus on areas you find challenging
-
-Start taking quizzes to get a personalized plan based on your performance! 🚀
-        `
-      });
+    if (error) {
+      console.error('Supabase fetch activities for plan error:', error);
+      return res.status(500).json({ error: 'Failed to fetch student activities for personalized plan.' });
     }
 
-    // Calculate weak topics
+    // Identify weak topics (avg score ≤ 2)
     const topicScores = {};
     activities.forEach(activity => {
       if (!topicScores[activity.question]) {
-        topicScores[activity.question] = { totalScore: 0, count: 0 };
+        topicScores[activity.question] = { totalScore: 0, count: 0, grade: activity.grade, language: activity.language };
       }
       topicScores[activity.question].totalScore += activity.quiz_score;
       topicScores[activity.question].count += 1;
@@ -546,28 +508,38 @@ Start taking quizzes to get a personalized plan based on your performance! 🚀
       if (avgScore <= 2) {
         weakTopics.push({
           question: topic,
-          score: Math.round(avgScore * 10) / 10 // Round to 1 decimal place
+          score: Number.isFinite(avgScore) ? Math.round(avgScore) : 0,
+          grade: topicScores[topic].grade,
+          language: topicScores[topic].language
         });
       }
     }
 
-    // Build the prompt
+    // ✅ Build prompt
     const prompt = buildPersonalizedPlanPrompt(weakTopics, studentGrade, studentLanguage);
 
-    console.log("Sending prompt to OpenAI:", prompt.substring(0, 200) + "...");
+    // ✅ Sanity check
+    if (!prompt || typeof prompt !== 'string') {
+      console.error("❌ Invalid prompt generated:", prompt);
+      return res.status(500).json({ error: "AI prompt generation failed. Please check inputs." });
+    }
 
-    // Call OpenAI API (non-streaming version)
-    const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+    console.log("✅ Personalized Plan Prompt:", prompt);
+
+    // 🔐 OpenAI API call
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
-        { 
-          role: 'system', 
-          content: 'You are a personalized AI tutor. Create engaging, well-structured learning plans with clear formatting using markdown, emojis, and proper spacing for mobile readability.' 
+        {
+          role: 'system',
+          content: 'You are a personalized AI tutor. Format your output with emojis, markdown headers, and line breaks for mobile readability.'
         },
-        { role: 'user', content: prompt }
+        {
+          role: 'user',
+          content: prompt
+        }
       ],
-      temperature: 0.7,
-      max_tokens: 2000
+      temperature: 0.7
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -575,18 +547,20 @@ Start taking quizzes to get a personalized plan based on your performance! 🚀
       }
     });
 
-    const personalizedPlan = openaiResponse.data.choices[0].message.content;
-    
-    console.log("OpenAI response received, length:", personalizedPlan.length);
+    const personalizedPlanContent = response.data.choices?.[0]?.message?.content;
+	const formattedPlan = formatResponse(personalizedPlanContent, studentGrade);
 
-    return res.json({ personalizedPlan });
+    if (!personalizedPlanContent) {
+      console.error("⚠️ OpenAI API returned empty content:", response.data);
+      return res.status(500).json({ error: 'Failed to generate personalized plan from AI.' });
+    }
+
+    // ✅ Send to client
+    res.json({ personalizedPlan: formattedPlan });
 
   } catch (error) {
-    console.error("Personalized plan error:", error.response?.data || error.message);
-    return res.status(500).json({ 
-      error: 'Failed to generate personalized plan. Please try again.',
-      details: error.response?.data?.error?.message || error.message
-    });
+    console.error('Personalized Plan Error:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Failed to generate personalized plan. Please try again.' });
   }
 });
 
@@ -802,45 +776,6 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
         });
       }
     }
-
-app.post('/api/explain-coding-topic', async (req, res) => {
-  const { language, topic } = req.body;
-
-  if (!language || !topic) {
-    return res.status(400).json({ error: 'Missing language or topic' });
-  }
-
-  const prompt = `
-  Explain the topic "${topic}" in ${language} to a class 6-8 student.
-  Use simple, kid-friendly language (max 4 lines).
-  Include a short working code example (1–3 lines).
-  
-  Format:
-  Explanation: <brief explanation>
-  Code: <short working code>
-  `;
-
-  try {
-    const chatResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-    });
-
-    const content = chatResponse.choices[0].message.content;
-
-    // Split response into explanation and code
-    const match = content.match(/Explanation:(.*?)(?:\\n)?Code:(.*)/s);
-    const explanation = match?.[1]?.trim() || content;
-    const code = match?.[2]?.trim() || '';
-
-    res.json({ explanation, code });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to get explanation from GPT' });
-  }
-});
 
     // ✅ 2. Build prompt and call OpenAI
     const prompt = buildExplanationPrompt(question, grade, language, role);
