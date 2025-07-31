@@ -15,6 +15,7 @@ const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 // const { Configuration, OpenAIApi } = require('openai');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+//const fetch = require('node-fetch');
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -220,79 +221,36 @@ const buildPersonalizedPlanPrompt = (weakTopics, studentGrade, studentLanguage) 
   const { langInstruction } = getLanguageInstructions(studentLanguage);
   const tone = getToneForClass(studentGrade);
 
-  // 🔒 Fallback for empty topics
   if (!weakTopics || weakTopics.length === 0) {
     return `
-You are an expert AI tutor for ${studentGrade} students in India.
+You are an AI tutor for ${studentGrade} in India. No weak topics were found. Make a 5-day revision plan for important chapters.
 
-🧠 The student has no recent weak topics identified.
-
-📋 Please create a general 5-day revision plan for ${studentGrade} covering important concepts.
-
-Follow this structure:
-
-### 🗓 Day X: [Topic Name]
-- **🧠 Why You Should Revise This**
-- **✅ Steps to Master It**
-- **📘 Study Resources**
-- **❓ Practice Question**
-- **💡 Fun Tip**
-
-✅ Use markdown formatting with emojis and spacing.  
+✅ Use emojis  
+✅ Use headings for Day 1–5  
+✅ Use clear simple language  
 ✅ Language: ${langInstruction}  
 ✅ Tone: ${tone}
     `.trim();
   }
 
-  // ✅ Safely build topics string (prevent NaN)
-  const topicsString = weakTopics.map(topic => {
-    const score = Number.isFinite(topic.score) ? topic.score : 0;
-    return `- ${topic.question} (score: ${score}/3)`;
-  }).join('\n');
+  const topicsList = weakTopics.map(topic => `- ${topic.question} (score: ${topic.score}/3)`).join('\n');
 
-  // ✅ Main personalized prompt
   return `
-You are an expert AI tutor creating a highly engaging and visually clear 5-day personalized learning plan for a ${studentGrade} student in India.
+You're an AI tutor for a ${studentGrade} student. Based on weak topics below, create a 5-day study plan:
 
-🎯 **Student's Weak Topics:**
-${topicsString}
+🧠 Weak Topics:  
+${topicsList}
 
-📋 **Your Task:**
-Design a 5-day plan to improve these topics. For each day, focus on one topic and include the following sections:
+Each Day should include:  
+- Topic name  
+- Why it’s hard  
+- 3–4 steps to improve  
+- 1 quiz question (MCQ)  
+- A fun tip
 
----
-
-### 🗓 **Day X: [Topic Name]**
-
-**🧠 Why You Struggled:**  
-Short explanation of common difficulties
-
-**✅ Step-by-Step Improvement Plan:**  
-List 3–5 clear, simple steps using:
-- 📚 Reading
-- 🎥 Watching videos
-- ✍️ Practice tasks
-
-**📘 Best Study Material:**  
-Mention specific NCERT chapters or free online content
-
-**❓ Practice Question:**  
-Multiple-choice question with 4 options (mark correct with *)
-
-**💡 Fun Fact or Tip:**  
-Creative or memorable fact to help retention
-
----
-
-📦 **Instructions:**
-- Format output in **Markdown**
-- Include **emojis** at the start of each section
-- Add **line breaks** between sections for readability
-- Use friendly and motivating tone: ${tone}
-- Language: ${langInstruction}
-- Distribute 1 topic per day (5 days)
-
-✅ If no weak topics exist, fallback to a general revision plan for ${studentGrade}.
+✅ Use emojis and simple markdown  
+✅ Language: ${langInstruction}  
+✅ Tone: ${tone}
   `.trim();
 };
 
