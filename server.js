@@ -468,6 +468,8 @@ app.get('/api/student-activities', authenticateToken, async (req, res) => {
   }
 });
 
+// Replace the existing /api/personalized-plan endpoint in server.js with this fixed version:
+
 app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   const user_id = req.user?.id;
   const studentGrade = req.user?.class || "Class 8";
@@ -478,11 +480,8 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
   }
 
   try {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    const fetchActivities = axios.get(
+    // Fetch activities first
+    const response = await axios.get(
       `${SUPABASE_URL}/rest/v1/student_activity?user_id=eq.${user_id}&select=question,quiz_score,grade,language`,
       {
         headers: {
@@ -492,17 +491,46 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
       }
     );
 
-    const tone = getToneForClass(studentGrade);
-    const { langInstruction } = getLanguageInstructions(studentLanguage);
+    const activities = response.data;
 
-    const { data: activities, error } = await fetchActivities;
+    if (!activities || activities.length === 0) {
+      return res.json({ 
+        personalizedPlan: `
+# 📚 Welcome to Your Learning Journey!
 
-    if (error) {
-      res.write(`data: ${JSON.stringify({ error: 'Failed to fetch activities' })}\n\n`);
-      res.end();
-      return;
+Since you haven't taken any quizzes yet, here's a general study plan for ${studentGrade}:
+
+## 🗓 Day 1: Mathematics Fundamentals
+- **📘 Focus**: Basic arithmetic and problem-solving
+- **✅ Activities**: Practice 10 problems daily
+- **💡 Tip**: Start with easier problems and gradually increase difficulty
+
+## 🗓 Day 2: Science Concepts
+- **📘 Focus**: Basic scientific principles
+- **✅ Activities**: Read one chapter from NCERT
+- **💡 Tip**: Make notes of key concepts
+
+## 🗓 Day 3: Language Skills
+- **📘 Focus**: Reading and comprehension
+- **✅ Activities**: Read one story or article
+- **💡 Tip**: Summarize what you read
+
+## 🗓 Day 4: Social Studies
+- **📘 Focus**: History and geography basics
+- **✅ Activities**: Learn about your local area
+- **💡 Tip**: Connect history with current events
+
+## 🗓 Day 5: Review and Practice
+- **📘 Focus**: Revision of all subjects
+- **✅ Activities**: Take practice quizzes
+- **💡 Tip**: Focus on areas you find challenging
+
+Start taking quizzes to get a personalized plan based on your performance! 🚀
+        `
+      });
     }
 
+    // Calculate weak topics
     const topicScores = {};
     activities.forEach(activity => {
       if (!topicScores[activity.question]) {
@@ -516,89 +544,49 @@ app.post('/api/personalized-plan', authenticateToken, async (req, res) => {
     for (const topic in topicScores) {
       const avgScore = topicScores[topic].totalScore / topicScores[topic].count;
       if (avgScore <= 2) {
-        weakTopics.push(`- ${topic} (avg score: ${Math.round(avgScore)}/3)`);
+        weakTopics.push({
+          question: topic,
+          score: Math.round(avgScore * 10) / 10 // Round to 1 decimal place
+        });
       }
     }
 
-    const topicsBlock = weakTopics.length
-      ? `Here are weak topics for a ${studentGrade} student:\n${weakTopics.join('\n')}`
-      : `No weak topics found. Generate a generic 5-day revision plan for ${studentGrade} students.`;
+    // Build the prompt
+    const prompt = buildPersonalizedPlanPrompt(weakTopics, studentGrade, studentLanguage);
 
-    const prompt = `
-${topicsBlock}
+    console.log("Sending prompt to OpenAI:", prompt.substring(0, 200) + "...");
 
-🎯 Your task:
-For each topic/day, write:
-- Short explanation of difficulty
-- 3–5 step improvement plan using reading/videos/practice
-- 1 key resource (e.g., NCERT or free video)
-- 1 MCQ (mark correct with *)
-- 1 fun tip
-
-💡 Format:
-- Use markdown and emojis
-- Friendly tone: ${tone}
-- Language: ${langInstruction}
-- Space out days clearly
-`.trim();
-
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    // Call OpenAI API (non-streaming version)
+    const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are a personalized AI tutor. Format with markdown, emojis, and clear sections for mobile readability.' },
+        { 
+          role: 'system', 
+          content: 'You are a personalized AI tutor. Create engaging, well-structured learning plans with clear formatting using markdown, emojis, and proper spacing for mobile readability.' 
+        },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      stream: true
+      max_tokens: 2000
     }, {
-      responseType: 'stream',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       }
     });
 
-    const decoder = new TextDecoder('utf-8');
+    const personalizedPlan = openaiResponse.data.choices[0].message.content;
+    
+    console.log("OpenAI response received, length:", personalizedPlan.length);
 
-    response.data.on('data', (chunk) => {
-      const lines = decoder.decode(chunk).split('\n').filter(line => line.trim() !== '');
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const json = line.replace(/^data:\s*/, '');
-          if (json === '[DONE]') {
-            res.write(`event: done\ndata: [DONE]\n\n`);
-            res.end();
-            return;
-          }
-
-          try {
-            const parsed = JSON.parse(json);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              // send each chunk as it comes
-              res.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
-            }
-          } catch (err) {
-            console.error("Stream parse error:", err.message);
-          }
-        }
-      }
-    });
-
-    response.data.on('end', () => {
-      res.end();
-    });
-
-    response.data.on('error', (err) => {
-      console.error('Stream error:', err.message);
-      res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
-      res.end();
-    });
+    return res.json({ personalizedPlan });
 
   } catch (error) {
-    console.error("Catch error:", error.message);
-    res.write(`data: ${JSON.stringify({ error: 'Internal server error' })}\n\n`);
-    res.end();
+    console.error("Personalized plan error:", error.response?.data || error.message);
+    return res.status(500).json({ 
+      error: 'Failed to generate personalized plan. Please try again.',
+      details: error.response?.data?.error?.message || error.message
+    });
   }
 });
 
