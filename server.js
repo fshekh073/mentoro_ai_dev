@@ -748,7 +748,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',    //gpt-4o
         messages: [
           {
             role: "system",
@@ -757,6 +757,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
+        max_tokens: 500,
       },
       { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
     );
