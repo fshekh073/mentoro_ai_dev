@@ -16,6 +16,7 @@ const { createClient } = require('@supabase/supabase-js');
 // const { Configuration, OpenAIApi } = require('openai');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 //const fetch = require('node-fetch');
+const { PassThrough } = require('stream');
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -693,28 +694,23 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
 // ================== EXISTING AI API ENDPOINTS ==================
 app.post('/api/explain', authenticateToken, async (req, res) => {
-  const { question, grade, language, role } = req.body;
+  const { question, grade, language, role, fastMode = false } = req.body;
   const userId = req.user?.id;
   const username = req.user?.username;
-  const cacheKey = `${question}-${grade}-${language}-${role}`;
-  const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  const cacheKey = `${question}-${grade}-${language}-${role}-${fastMode}`;
+  const today = new Date().toISOString().split('T')[0];
 
-  // 🚫 Sensitive content block
   const lowerQuestion = question.toLowerCase();
   if (SENSITIVE_KEYWORDS.some(k => lowerQuestion.includes(k))) {
     return res.json({ explanation: `⚠️ I can't explain this topic as it may contain sensitive content.` });
   }
 
-  // ✅ Check in-memory cache first
   if (explanationCache.has(cacheKey)) {
     return res.json({ explanation: explanationCache.get(cacheKey) });
   }
 
   try {
-    const isUnlimitedUser = username === 'fshekh'; // 👈 Your bypass condition
-
-    // ✅ 1. Supabase usage check (for normal users only)
-    let usageToday = null;
+    const isUnlimitedUser = username === 'fshekh';
     if (!isUnlimitedUser) {
       const { data, error } = await supabase
         .from('usage_limits')
@@ -728,66 +724,84 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Unable to check usage limits.' });
       }
 
-      usageToday = data;
-
-      if (usageToday && usageToday.explain_count >= 10) {
+      if (data?.explain_count >= 10) {
         return res.status(429).json({
           error: '🚫 Daily explanation limit reached (10 per day). Please try again tomorrow.'
         });
       }
     }
 
-    // ✅ 2. Build prompt and call OpenAI
     const prompt = buildExplanationPrompt(question, grade, language, role);
+    const model = 'gpt-4o';
 
-    if (!OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY is not defined.");
-      return res.status(500).json({ error: "Server configuration error: OpenAI API key is missing." });
-    }
-
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o',    //gpt-4o
+    const responseStream = await axios({
+      method: 'post',
+      url: 'https://api.openai.com/v1/chat/completions',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        model,
         messages: [
           {
             role: "system",
-            content: "You are a helpful AI tutor who adapts explanations perfectly to grade level."
+            content: "You are a helpful AI tutor who adapts explanations perfectly to grade level. Return content in Markdown with clear sections."
           },
           { role: "user", content: prompt }
         ],
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.6,
+        max_tokens: fastMode ? 300 : 700,
+        stream: true,
       },
-      { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
-    );
+      responseType: 'stream',
+    });
 
-    const explanation = formatResponse(response.data.choices[0].message.content, grade);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    // ✅ 3. Store to in-memory cache
-    explanationCache.set(cacheKey, explanation);
-
-    // ✅ 4. Increment Supabase usage count (only for normal users)
-    if (!isUnlimitedUser) {
-      if (usageToday) {
-        await supabase
-          .from('usage_limits')
-          .update({ explain_count: usageToday.explain_count + 1 })
-          .eq('user_id', userId)
-          .eq('date', today);
-      } else {
-        await supabase
-          .from('usage_limits')
-          .insert([{ user_id: userId, date: today, explain_count: 1 }]);
+    const stream = new PassThrough();
+    responseStream.data.on('data', (chunk) => {
+      const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const json = line.replace(/^data: /, '');
+          if (json === '[DONE]') {
+            res.write('\n\n');
+            res.end();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(json);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              res.write(content);
+            }
+          } catch (e) {
+            console.error("Parsing error:", e);
+          }
+        }
       }
-    } else {
-      console.log(`✅ Unlimited usage for user: ${username}`);
-    }
+    });
 
-    return res.json({ explanation });
+    responseStream.data.on('end', async () => {
+      if (!isUnlimitedUser) {
+        await supabase
+          .from('usage_limits')
+          .upsert([{ user_id: userId, date: today, explain_count: 1 }], { onConflict: ['user_id', 'date'] });
+      }
+      console.log(`✅ Explanation streamed successfully`);
+    });
+
+    responseStream.data.on('error', (err) => {
+      console.error('Stream Error:', err);
+      res.end();
+    });
+
   } catch (error) {
-    console.error('Explanation Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate explanation. Please try again.' });
+    console.error('Explanation Stream Error:', error.response?.data || error.message);
+    return res.status(500).json({ error: 'Failed to generate explanation. Please try again.' });
   }
 });
 
@@ -946,4 +960,5 @@ async function startServer() {
 }
 
 startServer();
+
 
