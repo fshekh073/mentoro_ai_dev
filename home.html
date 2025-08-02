@@ -130,6 +130,20 @@
     animation: popIn 0.4s ease-out forwards;
   }
 
+	  .modal.hidden {
+  display: none;
+}
+.modal {
+  display: flex;
+}
+.loader-circle {
+  border-width: 4px;
+  border-style: solid;
+  border-radius: 9999px;
+  border-color: #3B82F6 transparent transparent transparent;
+  width: 3rem;
+  height: 3rem;
+}
   /* Typing Indicator */
   .typing-indicator span {
     display: inline-block;
@@ -1363,38 +1377,45 @@
 
     // Generate Personalized Plan
     const handleGeneratePersonalizedPlan = async () => {
-      if (!currentUser || weakTopics.length === 0) {
-        showCustomAlert('No Weak Areas', 'You currently have no identified weak areas based on your quiz performance, or no activities recorded.');
-        return;
-      }
+  if (!currentUser || weakTopics.length === 0) {
+    showCustomAlert('No Weak Areas', 'You currently have no identified weak areas based on your quiz performance, or no activities recorded.');
+    return;
+  }
 
-      setLoadingPlan(true);
-      setPersonalizedPlan('');
-      try {
-        const response = await axios.post(`${API_BASE_URL}/personalized-plan`, {
-          language,
-          grade: currentUser.class || grade
-        }, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+  // ✅ Show loading modal
+  document.getElementById('loading-modal')?.classList.remove('hidden');
 
-        if (response.data.error) {
-          showCustomAlert('API Error', response.data.error);
-        } else {
-          setPersonalizedPlan(response.data.personalizedPlan);
-        }
-      } catch (error) {
-        console.error('Error generating personalized plan:', error.response ? error.response.data : error.message);
-        showCustomAlert('Error', error.response?.data?.error || 'Failed to generate personalized plan. Please try again.');
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          handleLogout();
-        }
-      } finally {
-        setLoadingPlan(false);
+  setLoadingPlan(true);
+  setPersonalizedPlan('');
+
+  try {
+    const response = await axios.post(`${API_BASE_URL}/personalized-plan`, {
+      language,
+      grade: currentUser.class || grade
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
       }
-    };
+    });
+
+    if (response.data.error) {
+      showCustomAlert('API Error', response.data.error);
+    } else {
+      setPersonalizedPlan(response.data.personalizedPlan);
+    }
+  } catch (error) {
+    console.error('Error generating personalized plan:', error.response ? error.response.data : error.message);
+    showCustomAlert('Error', error.response?.data?.error || 'Failed to generate personalized plan. Please try again.');
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      handleLogout();
+    }
+  } finally {
+    setLoadingPlan(false);
+
+    // ✅ Hide loading modal
+    document.getElementById('loading-modal')?.classList.add('hidden');
+  }
+};
 
     if (!currentUser) return null;
 
@@ -1981,6 +2002,7 @@
 </body>
 	
 </html>
+
 
 
 
