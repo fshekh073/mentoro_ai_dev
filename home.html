@@ -105,6 +105,12 @@
     border-right: 12px solid #e0f2fe;
   }
 
+	  @media (max-width: 768px) {
+  .explanation-scroll-area {
+    padding-bottom: 120px;
+  }
+}
+
   /* Avatar Animation */
   @keyframes bounce {
     0%, 100% { transform: translateY(0); }
@@ -1090,6 +1096,9 @@
     return;
   }
 
+  // ✅ Collapse keyboard
+  document.activeElement.blur();
+
   const { parsedQuestion, parsedGrade, parsedLanguage } = parseSearchInput(inputToParse);
   setQuestion(parsedQuestion);
   setGrade(parsedGrade);
@@ -1133,6 +1142,12 @@
 
     await read();
     setShowQuizOption(true);
+
+    // ✅ Scroll to explanation once it's available
+    setTimeout(() => {
+      const el = document.getElementById('explanation-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100); // slight delay after render
   } catch (err) {
     console.error('Stream error:', err);
     showCustomAlert('Error', err.message || 'Failed to fetch explanation.');
@@ -1691,7 +1706,7 @@
                       </div>
                     )}
                     {explanation && (
-                      <div className="chat-bubble text-gray-700 explanation-scroll-area">
+                      <div id="explanation-section" className="chat-bubble text-gray-700 explanation-scroll-area">
                         {parsedExplanationSections.map((section, index) => {
                           if (section.type === 'Introduction' && !section.content.trim()) return null;
 
@@ -1966,5 +1981,6 @@
 </body>
 	
 </html>
+
 
 
