@@ -1071,54 +1071,62 @@
     };
 
     const handleExplainTopic = async (inputFromSource = null) => {
-      const inputToParse = inputFromSource || searchTerm;
+  const inputToParse = inputFromSource || searchTerm;
+  if (!inputToParse) {
+    showCustomAlert('Input Required', 'Please enter a question or topic.');
+    return;
+  }
 
-      if (!inputToParse) {
-        showCustomAlert('Input Required', 'Please enter a question or topic.');
-        return;
-      }
+  const { parsedQuestion, parsedGrade, parsedLanguage } = parseSearchInput(inputToParse);
+  setQuestion(parsedQuestion);
+  setGrade(parsedGrade);
+  setLanguage(parsedLanguage);
+  setExplanation('');
+  setLoading(true);
 
-      const { parsedQuestion, parsedGrade, parsedLanguage } = parseSearchInput(inputToParse);
+  const controller = new AbortController();
+  const decoder = new TextDecoder('utf-8');
 
-      setQuestion(parsedQuestion);
-      setGrade(parsedGrade);
-      setLanguage(parsedLanguage);
+  try {
+    const response = await fetch(`${API_BASE_URL}/explain`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        question: parsedQuestion,
+        grade: parsedGrade,
+        language: parsedLanguage,
+        role,
+        fastMode: false // or true if user toggles "speed mode"
+      }),
+      signal: controller.signal,
+    });
 
-      setLoading(true);
-      setExplanation('');
-      setQuizQuestions([]);
-      setQuizResults(null);
-      setShowQuiz(false);
-      setShowQuizOption(false);
+    if (!response.body) throw new Error('No stream returned.');
 
-      try {
-        const response = await axios.post(`${API_BASE_URL}/explain`, {
-          question: parsedQuestion,
-          grade: parsedGrade,
-          language: parsedLanguage,
-          role,
-        }, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        if (response.data.error) {
-          showCustomAlert('API Error', response.data.error);
-        } else {
-          setExplanation(response.data.explanation);
-          setShowQuizOption(true);
-          playSound('generate');
-        }
-      } catch (error) {
-        console.error('Error explaining topic:', error.response ? error.response.data : error.message);
-        showCustomAlert('Error', error.response?.data?.error || 'Failed to generate explanation. Please check your backend server and try again.');
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          handleLogout();
-        }
-      } finally {
-        setLoading(false);
+    const reader = response.body.getReader();
+    let result = '';
+    const read = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        result += chunk;
+        setExplanation(prev => prev + chunk); // Real-time update
       }
     };
+
+    await read();
+    setShowQuizOption(true);
+  } catch (err) {
+    console.error('Stream error:', err);
+    showCustomAlert('Error', err.message || 'Failed to fetch explanation.');
+  } finally {
+    setLoading(false);
+  }
+};
 
     const handleGenerateQuiz = async () => {
       if (!explanation || !question) {
@@ -1936,3 +1944,4 @@
 </body>
 	
 </html>
+
