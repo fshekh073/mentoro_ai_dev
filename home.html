@@ -184,6 +184,30 @@
     background: #818cf8;
   }
 
+@keyframes dot-flash {
+  0% { content: "."; }
+  25% { content: ".."; }
+  50% { content: "..."; }
+  75% { content: ""; }
+  100% { content: "."; }
+}
+
+.loader-bar {
+  position: relative;
+  width: 100%;
+  height: 8px;
+}
+
+.loader-progress {
+  width: 50%;
+  animation: loader-slide 1.2s linear infinite;
+}
+
+@keyframes loader-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}	  
+
   /* Progress Bar Animation */
   .progress-bar {
     height: 10px;
@@ -1990,18 +2014,44 @@
     <p class="text-lg font-semibold text-gray-800">Extracting text from your image…</p>
   </div>
 </div>
-<!-- Personalized Plan Loading Modal -->
-<div id="loading-modal" class="modal hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-  <div class="modal-content text-center bg-white p-6 rounded-xl shadow-lg">
-    <div class="loader-circle mb-4"></div>
-    <h3 class="text-lg font-semibold">Generating Your Personalized Plan...</h3>
-    <p class="text-sm text-gray-500">This may take a few seconds. Our AI tutor is tailoring your perfect path 📚✨</p>
+<div id="loading-modal" class="modal hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+  <div class="modal-content bg-white p-6 rounded-xl text-center shadow-lg w-[90%] max-w-md">
+    <div class="mb-4 text-blue-600 text-3xl animate-pulse">🤖</div>
+
+    <h3 class="text-xl font-semibold mb-2">Building Your Personalized Plan...</h3>
+
+    <p id="loading-text" class="text-sm text-gray-600">
+      Analyzing your performance<span class="dots">.</span>
+    </p>
+
+    <div class="mt-6">
+      <div class="loader-bar h-2 rounded bg-blue-200 overflow-hidden">
+        <div class="loader-progress h-full bg-blue-600 animate-loader-slide"></div>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+  const messages = [
+    "Analyzing your performance...",
+    "Identifying weak areas...",
+    "Selecting best topics for you...",
+    "Crafting your perfect study plan..."
+  ];
+  let index = 0;
+
+  setInterval(() => {
+    const el = document.getElementById("loading-text");
+    if (el) el.textContent = messages[index % messages.length];
+    index++;
+  }, 1800);
+</script>
 	
 </body>
 	
 </html>
+
 
 
 
