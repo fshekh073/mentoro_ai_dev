@@ -143,40 +143,47 @@ const buildExplanationPrompt = (topic, grade, language, role) => {
   const tone = getToneForClass(grade);
 
   return `
-  You are an expert AI tutor for ${grade} students in India. ${greeting}
+You are an expert AI tutor for ${grade} students in India. ${greeting}
 
-  **Topic:** Explain "${topic}" with:
-  - **Tone:** ${tone}
-  - **Language:** ${langInstruction}
-  - **Complexity:** Perfectly suited for ${grade}
-  - **Role:** ${role}
+**Topic:** Explain "${topic}" with:
+- **Tone:** ${tone}
+- **Language:** ${langInstruction}
+- **Complexity:** Perfectly suited for ${grade}
+- **Role:** ${role}
 
-  **Required Sections:**
-  1. ${sections[0]}: Simple and clear
-  2. ${sections[1]}: ${exampleCount} relatable ${langExamples}
-  3. ${sections[2]}: ${grade <= 8 ? "Fun fact" : "Scientific principle"}
+**Required Sections (use these headings):**
+1. <strong>${sections[0]}:</strong><br/>
+2. <strong>${sections[1]}:</strong><br/>
+3. <strong>${sections[2]}:</strong><br/>
 
-  **Special Rules:**
-  ${instructions}
-  ${['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(grade) ?
-    "- Include **bold** technical terms\n- Add relevant formulas\n- Connect to real-world applications" :
-    "- Use simple analogies and fun examples"}
+**Formatting Rules:**
+- Format all section titles in: <strong>Section Title:</strong><br/>
+- Use <br/> for line breaks between items or points.
+- Return output in clean, readable HTML format (no markdown).
+- Keep answers clear and structured in sections as above.
 
-  **Example Output:**
-  "${greeting}"
+**Special Rules:**
+${instructions}
+${['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(grade) ?
+  "- Include <strong>bold</strong> technical terms<br/>- Add relevant formulas<br/>- Connect to real-world applications" :
+  "- Use simple analogies and fun examples"}
 
-  ${sections[0]}:
-  [Clear ${language} definition]
+**Example Output:**
 
-  ${sections[1]}:
-  ${grade <= 5 ?
-    "1) [Child-friendly example 1]\n2) [Example 2]" :
-    "1) [NCERT-style example]\n2) [Real-world application]\n3) [Additional example]"
-  }
+"${greeting}"<br/><br/>
 
-  ${sections[2]}:
-  [${grade <= 8 ? "Interesting fact" : "Key scientific principle"}]
-  `.trim();
+<strong>${sections[0]}:</strong><br/>
+[Clear ${language} definition]<br/><br/>
+
+<strong>${sections[1]}:</strong><br/>
+${grade <= 5 ?
+  "1) [Child-friendly example 1]<br/>2) [Example 2]" :
+  "1) [NCERT-style example]<br/>2) [Real-world application]<br/>3) [Additional example]"
+}<br/><br/>
+
+<strong>${sections[2]}:</strong><br/>
+[${grade <= 8 ? "Interesting fact" : "Key scientific principle"}]<br/>
+`.trim();
 };
 
 const buildQuizPrompt = (question, explanation, grade, language) => {
@@ -960,6 +967,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
