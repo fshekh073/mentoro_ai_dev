@@ -660,7 +660,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 if (best.confidence < 70 || !best.text.trim()) {
   console.log('⚠️ Low OCR confidence. Falling back to OpenAI Vision OCR...');
   try {
-    const visionText = await extractTextWithOpenAIVision(req.file.buffer);
+    const visionText = await extractTextWithOpenAIVision(buffer);
 
     if (!visionText || visionText.trim().length < 10) {
       return res.status(400).json({
@@ -1014,6 +1014,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
