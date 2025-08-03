@@ -55,6 +55,9 @@ app.use(express.json());
 
 // Load API keys and secrets from environment variables
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+});
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -1014,6 +1017,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
