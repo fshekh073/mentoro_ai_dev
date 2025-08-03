@@ -17,6 +17,10 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 //const fetch = require('node-fetch');
 const { PassThrough } = require('stream');
+const { OpenAI } = require('openai');
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+});
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -653,11 +657,25 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     console.log("Best OCR Type:", best.type);
     console.log("OCR Confidence:", best.confidence);
 
-    if (best.confidence < 70 || !best.text.trim()) {
+    let extractedText = best.text;
+
+if (best.confidence < 70 || !best.text.trim()) {
+  console.log('⚠️ Low OCR confidence. Falling back to OpenAI Vision OCR...');
+  try {
+    const visionText = await extractTextWithOpenAIVision(req.file.buffer);
+
+    if (!visionText || visionText.trim().length < 10) {
       return res.status(400).json({
-        error: '🧐 Low OCR confidence. Try again with better lighting and alignment.'
+        error: '🧐 OCR failed. Vision model could not extract usable text either.',
       });
     }
+
+    extractedText = visionText;
+  } catch (err) {
+    console.error('Error during vision OCR:', err);
+    return res.status(500).json({ error: 'Vision OCR failed unexpectedly.' });
+  }
+}
 
     // 🧹 Clean text
     let cleanedText = best.text
@@ -699,6 +717,34 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   }
 });
 
+
+async function extractTextWithOpenAIVision(imageBuffer) {
+  const base64Image = imageBuffer.toString('base64');
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a helpful OCR assistant. Extract all clear, readable text from the image. Focus on textbook-style academic content.',
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 1000,
+  });
+
+  return response.choices[0].message.content;
+}
 // ================== EXISTING AI API ENDPOINTS ==================
 app.post('/api/explain', authenticateToken, async (req, res) => {
   const { question, grade, language, role, fastMode = false } = req.body;
@@ -967,6 +1013,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
