@@ -18,9 +18,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 //const fetch = require('node-fetch');
 const { PassThrough } = require('stream');
 const { OpenAI } = require('openai');
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+
 
 
 // --- DIAGNOSTIC LOG: Check if API key is loaded ---
@@ -1013,6 +1011,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
