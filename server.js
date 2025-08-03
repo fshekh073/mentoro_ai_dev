@@ -670,8 +670,10 @@ if (best.confidence < 70 || !best.text.trim()) {
 
     extractedText = visionText;
   } catch (err) {
-    console.error('Error during vision OCR:', err);
-    return res.status(500).json({ error: 'Vision OCR failed unexpectedly.' });
+  console.error('❌ Vision OCR error:', err.response?.data || err.message || err);
+  return res.status(500).json({
+    error: 'Vision OCR failed.',
+    details: err.response?.data || err.message || 'Unknown error', });
   }
 }
 
@@ -1011,6 +1013,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
