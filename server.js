@@ -602,7 +602,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 
     // ✅ Preprocess 3 versions: grayscale, color-boost, handwriting-boost
-    const [grayBuffer, colorBuffer, handwritingBuffer] = await Promise.all([
+    const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer] = await Promise.all([
       sharp(buffer)
         .resize({ width: 1600, withoutEnlargement: true })
         .grayscale()
@@ -624,6 +624,15 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
         .sharpen({ sigma: 1.2 })
         .toFormat('png')
         .toBuffer()
+
+      // 🔵 Blue Ink Boost
+     sharp(buffer)
+    .resize({ width: 1600, withoutEnlargement: true })
+    .modulate({ brightness: 1.6, contrast: 1.9, saturation: 2.2 }) // enhance blue hues
+    .tint({ r: 100, g: 100, b: 255 }) // slight blue tint emphasis
+    .sharpen()
+    .toFormat('png')
+    .toBuffer()
     ]);
 
     // 🧠 Create worker
@@ -639,21 +648,22 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     });
 
     // 🧪 Run OCR on all versions
-    const [grayResult, colorResult, handwritingResult] = await Promise.all([
-      worker.recognize(grayBuffer),
-      worker.recognize(colorBuffer),
-      worker.recognize(handwritingBuffer),
-    ]);
+    const [grayResult, colorResult, handwritingResult, blueResult] = await Promise.all([
+  worker.recognize(grayBuffer),
+  worker.recognize(colorBuffer),
+  worker.recognize(handwritingBuffer),
+  worker.recognize(blueInkBuffer),
+]);
 
-    const results = [
-      { type: 'gray', ...grayResult.data },
-      { type: 'color', ...colorResult.data },
-      { type: 'handwriting', ...handwritingResult.data },
-    ];
+const results = [
+  { type: 'gray', ...grayResult.data },
+  { type: 'color', ...colorResult.data },
+  { type: 'handwriting', ...handwritingResult.data },
+  { type: 'blue-ink', ...blueResult.data }
+];
 
-    // 🥇 Pick best based on confidence and length
-    results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
-    const best = results[0];
+results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
+const best = results[0];
 
     console.log("Best OCR Type:", best.type);
     console.log("OCR Confidence:", best.confidence);
@@ -1017,6 +1027,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
