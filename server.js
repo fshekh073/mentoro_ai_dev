@@ -636,7 +636,7 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   .sharpen({ sigma: 2.0 }) // stronger edge detection
   .threshold(100) // binarize to make text pop
   .toFormat('png')
-  .toBuffer();
+  .toBuffer(),
 ]);
 
     // 🧠 Create worker
@@ -1031,6 +1031,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
