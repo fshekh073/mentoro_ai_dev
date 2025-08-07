@@ -630,12 +630,13 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
   // 🔵 Blue ink emphasis
   sharp(buffer)
-    .resize({ width: 1600, withoutEnlargement: true })
-    .modulate({ brightness: 1.7, contrast: 1.8, saturation: 2.2 })
-    .tint({ r: 100, g: 100, b: 255 }) // blue tint bias
-    .sharpen()
-    .toFormat('png')
-    .toBuffer()
+  .resize({ width: 1600, withoutEnlargement: true })
+  .modulate({ brightness: 1.7, saturation: 2.5 }) // exaggerate blue
+  .tint({ r: 0, g: 0, b: 255 }) // emphasize blue
+  .sharpen({ sigma: 2.0 }) // stronger edge detection
+  .threshold(100) // binarize to make text pop
+  .toFormat('png')
+  .toBuffer();
 ]);
 
     // 🧠 Create worker
@@ -1030,6 +1031,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
