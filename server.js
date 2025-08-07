@@ -601,43 +601,54 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 
-    // ✅ Preprocess 3 versions: grayscale, color-boost, handwriting-boost
-    const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer] = await Promise.all([
-  // Grayscale for black ink
-  sharp(buffer)
-    .resize({ width: 1600, withoutEnlargement: true })
-    .grayscale()
-    .modulate({ brightness: 1.3, contrast: 1.6 })
-    .sharpen()
-    .toFormat('png')
-    .toBuffer(),
+    // 🧪 Preprocess into 5 versions
+    const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer, blueInkV2Buffer] = await Promise.all([
+      // 1. Grayscale
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .grayscale()
+        .modulate({ brightness: 1.3, contrast: 1.6 })
+        .sharpen()
+        .toFormat('png')
+        .toBuffer(),
 
-  // Color-enhanced for NCERT
-  sharp(buffer)
-    .resize({ width: 1600, withoutEnlargement: true })
-    .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
-    .sharpen()
-    .toFormat('png')
-    .toBuffer(),
+      // 2. Color-enhanced
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
+        .sharpen()
+        .toFormat('png')
+        .toBuffer(),
 
-  // Handwriting contrast boost
-  sharp(buffer)
-    .resize({ width: 1600, withoutEnlargement: true })
-    .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 })
-    .sharpen({ sigma: 1.2 })
-    .toFormat('png')
-    .toBuffer(),
+      // 3. Handwriting boost
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 })
+        .sharpen({ sigma: 1.2 })
+        .toFormat('png')
+        .toBuffer(),
 
-  // 🔵 Blue ink emphasis
-  sharp(buffer)
-  .resize({ width: 1600, withoutEnlargement: true })
-  .modulate({ brightness: 1.7, saturation: 2.5 }) // exaggerate blue
-  .tint({ r: 0, g: 0, b: 255 }) // emphasize blue
-  .sharpen({ sigma: 2.0 }) // stronger edge detection
-  .threshold(100) // binarize to make text pop
-  .toFormat('png')
-  .toBuffer(),
-]);
+      // 4. Blue ink emphasis
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.7, saturation: 2.5 })
+        .tint({ r: 0, g: 0, b: 255 })
+        .sharpen({ sigma: 2.0 })
+        .threshold(100)
+        .toFormat('png')
+        .toBuffer(),
+
+      // 5. Aggressive blue ink cleanup
+      sharp(buffer)
+        .resize({ width: 1600, withoutEnlargement: true })
+        .linear(1.1, -40)
+        .modulate({ brightness: 1.5, saturation: 3.0 })
+        .sharpen({ sigma: 3.0 })
+        .tint({ r: 90, g: 90, b: 255 })
+        .threshold(110)
+        .toFormat('png')
+        .toBuffer(),
+    ]);
 
     // 🧠 Create worker
     worker = await createWorker('eng', 1, {
@@ -646,57 +657,61 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     });
 
     await worker.setParameters({
-      tessedit_pageseg_mode: '11', // Sparse text – better for handwriting
+      tessedit_pageseg_mode: '6', // Block of text (better for blue ink lines)
       user_defined_dpi: '450',
       preserve_interword_spaces: '1',
     });
 
-    // 🧪 Run OCR on all versions
-    const [grayResult, colorResult, handwritingResult, blueResult] = await Promise.all([
-  worker.recognize(grayBuffer),
-  worker.recognize(colorBuffer),
-  worker.recognize(handwritingBuffer),
-  worker.recognize(blueInkBuffer),
-]);
+    // 🔍 Run OCR on all versions
+    const [grayResult, colorResult, handwritingResult, blueResult, blueV2Result] = await Promise.all([
+      worker.recognize(grayBuffer),
+      worker.recognize(colorBuffer),
+      worker.recognize(handwritingBuffer),
+      worker.recognize(blueInkBuffer),
+      worker.recognize(blueInkV2Buffer),
+    ]);
 
-const results = [
-  { type: 'gray', ...grayResult.data },
-  { type: 'color', ...colorResult.data },
-  { type: 'handwriting', ...handwritingResult.data },
-  { type: 'blue-ink', ...blueResult.data }
-];
+    const results = [
+      { type: 'gray', ...grayResult.data },
+      { type: 'color', ...colorResult.data },
+      { type: 'handwriting', ...handwritingResult.data },
+      { type: 'blue-ink', ...blueResult.data },
+      { type: 'blue-v2', ...blueV2Result.data }
+    ];
 
-results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
-const best = results[0];
+    results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
+    const best = results[0];
 
     console.log("Best OCR Type:", best.type);
     console.log("OCR Confidence:", best.confidence);
 
     let extractedText = best.text;
 
-if (best.confidence < 70 || !best.text.trim()) {
-  console.log('⚠️ Low OCR confidence. Falling back to OpenAI Vision OCR...');
-  try {
-    const visionText = await extractTextWithOpenAIVision(buffer);
+    // ⛔ Fallback to Vision OCR if poor confidence or short/garbled output
+    if (best.confidence < 70 || !best.text.trim() || best.text.trim().length < 20 || !/[a-zA-Z]/.test(best.text)) {
+      console.log('⚠️ Low OCR confidence. Falling back to OpenAI Vision OCR...');
+      try {
+        const visionText = await extractTextWithOpenAIVision(buffer);
 
-    if (!visionText || visionText.trim().length < 10) {
-      return res.status(400).json({
-        error: '🧐 OCR failed. Vision model could not extract usable text either.',
-      });
+        if (!visionText || visionText.trim().length < 10) {
+          return res.status(400).json({
+            error: '🧐 OCR failed. Vision model could not extract usable text either.',
+          });
+        }
+
+        extractedText = visionText;
+      } catch (err) {
+        const errorDetails = err.response?.data || err.message || err;
+        console.error('❌ Vision OCR failed with:', errorDetails);
+        return res.status(500).json({
+          error: 'Vision OCR failed.',
+          details: errorDetails,
+        });
+      }
     }
 
-    extractedText = visionText;
-  } catch (err) {
-  const errorDetails = err.response?.data || err.message || err;
-  console.error('❌ Vision OCR failed with:', errorDetails);
-  return res.status(500).json({
-    error: 'Vision OCR failed.',
-    details: errorDetails, });
-  }
-}
-
     // 🧹 Clean text
-    let cleanedText = best.text
+    let cleanedText = extractedText
       .replace(/[^\x00-\x7F]/g, "")
       .replace(/\s{2,}/g, " ")
       .replace(/[-\u001F]+/g, " ")
@@ -715,7 +730,7 @@ if (best.confidence < 70 || !best.text.trim()) {
       return word;
     });
 
-    let correctedText = correctedWords.join(' ');
+    const correctedText = correctedWords.join(' ');
     console.log("Spell-corrected:", correctedText);
 
     // 🤖 GPT contextual cleanup
@@ -734,6 +749,7 @@ if (best.confidence < 70 || !best.text.trim()) {
     if (worker) await worker.terminate();
   }
 });
+
 
 
 async function extractTextWithOpenAIVision(imageBuffer) {
@@ -1031,6 +1047,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
