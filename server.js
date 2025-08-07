@@ -603,37 +603,40 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 
     // ✅ Preprocess 3 versions: grayscale, color-boost, handwriting-boost
     const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer] = await Promise.all([
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .grayscale()
-        .modulate({ brightness: 1.3, contrast: 1.6 })
-        .sharpen()
-        .toFormat('png')
-        .toBuffer(),
-
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
-        .sharpen()
-        .toFormat('png')
-        .toBuffer(),
-
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 }) // Boost ink stroke
-        .sharpen({ sigma: 1.2 })
-        .toFormat('png')
-        .toBuffer()
-
-      // 🔵 Blue Ink Boost
-     sharp(buffer)
+  // Grayscale for black ink
+  sharp(buffer)
     .resize({ width: 1600, withoutEnlargement: true })
-    .modulate({ brightness: 1.6, contrast: 1.9, saturation: 2.2 }) // enhance blue hues
-    .tint({ r: 100, g: 100, b: 255 }) // slight blue tint emphasis
+    .grayscale()
+    .modulate({ brightness: 1.3, contrast: 1.6 })
+    .sharpen()
+    .toFormat('png')
+    .toBuffer(),
+
+  // Color-enhanced for NCERT
+  sharp(buffer)
+    .resize({ width: 1600, withoutEnlargement: true })
+    .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
+    .sharpen()
+    .toFormat('png')
+    .toBuffer(),
+
+  // Handwriting contrast boost
+  sharp(buffer)
+    .resize({ width: 1600, withoutEnlargement: true })
+    .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 })
+    .sharpen({ sigma: 1.2 })
+    .toFormat('png')
+    .toBuffer(),
+
+  // 🔵 Blue ink emphasis
+  sharp(buffer)
+    .resize({ width: 1600, withoutEnlargement: true })
+    .modulate({ brightness: 1.7, contrast: 1.8, saturation: 2.2 })
+    .tint({ r: 100, g: 100, b: 255 }) // blue tint bias
     .sharpen()
     .toFormat('png')
     .toBuffer()
-    ]);
+]);
 
     // 🧠 Create worker
     worker = await createWorker('eng', 1, {
@@ -1027,6 +1030,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
