@@ -721,6 +721,8 @@
     const [showOcrProgress, setShowOcrProgress] = useState(false);
     const [showSpeechDialogue, setShowSpeechDialogue] = useState(false);
 
+	const [examMapping, setExamMapping] = useState(null);  
+
     // Progress View States
     const [studentActivities, setStudentActivities] = useState([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
@@ -1181,11 +1183,27 @@
     await read();
     setShowQuizOption(true);
 
+    // 🔹 Fetch exam mapping after explanation finishes (non-blocking)
+    try {
+      fetch(`${API_BASE_URL}/exam-mapping?topic=${encodeURIComponent(parsedQuestion)}&grade=${encodeURIComponent(parsedGrade)}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.json())
+        .then(j => setExamMapping(j.mapping))
+        .catch(err => {
+          console.warn('Exam mapping fetch failed', err);
+          setExamMapping(null);
+        });
+    } catch (e) {
+      console.error('mapping fetch error', e);
+    }
+
     // ✅ Scroll to explanation once it's available
     setTimeout(() => {
       const el = document.getElementById('explanation-section');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100); // slight delay after render
+
   } catch (err) {
     console.error('Stream error:', err);
     showCustomAlert('Error', err.message || 'Failed to fetch explanation.');
@@ -1789,7 +1807,41 @@
                   </div>
                 </MotionDiv>
               )}
+				
+	{examMapping && (
+    <div className="exam-card p-4 rounded-md shadow bg-white mt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm text-gray-500">📘 Chapter</div>
+          <div className="font-semibold text-lg">
+            {examMapping.chapter_name} {examMapping.chapter_number ? `(Ch ${examMapping.chapter_number})` : ''}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-gray-400">Weightage</div>
+          <div className="font-bold">
+            {examMapping.weightage_percent ?? (examMapping.weightage_bp ? (examMapping.weightage_bp / 100).toFixed(2) + '%' : 'N/A')}
+          </div>
+        </div>
+      </div>
 
+      <div className="mt-3 text-sm text-gray-700">
+        <strong>Appeared in:</strong>{' '}
+        {Array.isArray(examMapping.past_year_refs)
+          ? examMapping.past_year_refs.join(', ')
+          : (examMapping.past_year_refs ? JSON.stringify(examMapping.past_year_refs) : '—')}
+      </div>
+
+      {examMapping.syllabus_codes && (
+        <div className="mt-2 text-xs text-gray-500">
+          Codes: {Array.isArray(examMapping.syllabus_codes)
+            ? examMapping.syllabus_codes.join(', ')
+            : JSON.stringify(examMapping.syllabus_codes)}
+        </div>
+      )}
+    </div>
+  )}
+</div>
               {/* Quiz Option */}
               {showQuizOption && explanation && (
                 <MotionDiv className="mt-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 p-5 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
@@ -2051,6 +2103,7 @@
 </body>
 	
 </html>
+
 
 
 
