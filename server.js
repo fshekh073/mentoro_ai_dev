@@ -27,6 +27,43 @@ console.log("OPENAI_API_KEY loaded:", process.env.OPENAI_API_KEY ? "Yes (length:
 const app = express();
 const port = 5000;
 
+function slugifyTopic(grade, topic) {
+  if (!topic) return '';
+  const g = (grade || '').toString().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+  const t = topic.toString().toLowerCase().trim()
+              .replace(/\s+/g, '-')
+              .replace(/[^\w\-]+/g, '')
+              .replace(/\-\-+/g, '-')
+              .replace(/^-+|-+$/g, '');
+  return `${g ? g + '-' : ''}${t}`;
+}
+
+// --- GET mapping endpoint
+app.get('/api/exam-mapping', authenticateToken, async (req, res) => {
+  try {
+    const { topic, grade } = req.query;
+    if (!topic) return res.status(400).json({ error: 'query param "topic" required' });
+
+    const topic_id = slugifyTopic(grade || req.user?.class || '', topic);
+
+    const { data, error } = await supabase
+      .from('exam_mapping')
+      .select('*')
+      .eq('topic_id', topic_id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase exam_mapping lookup error:', error);
+      return res.status(500).json({ error: 'Database lookup failed' });
+    }
+
+    return res.json({ mapping: data || null });
+  } catch (err) {
+    console.error('Exam mapping error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ================== AUTH MIDDLEWARE ==================
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -1047,6 +1084,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
