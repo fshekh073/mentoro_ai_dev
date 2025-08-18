@@ -589,6 +589,29 @@ ${inputText}
   }
 }
 
+// ================== GLOBAL OCR WORKER ==================
+let ocrWorker = null;
+(async () => {
+  try {
+    ocrWorker = await createWorker('eng', 1, {
+      langPath: path.join(__dirname, 'lang-data'),
+      oem: 1,
+    });
+
+    await ocrWorker.setParameters({
+      tessedit_pageseg_mode: '6', // Assume block of text
+      user_defined_dpi: '450',
+      preserve_interword_spaces: '1',
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=*/()^',
+    });
+
+    console.log("✅ Tesseract OCR worker initialized.");
+  } catch (err) {
+    console.error("❌ Failed to init OCR worker:", err);
+  }
+})();
+
+// ================== OCR ENDPOINT ==================
 app.post('/api/ocr', authenticateToken, async (req, res) => {
   const { image } = req.body;
 
@@ -596,117 +619,72 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   if (!image.match(/^data:image\/(jpeg|png);base64,/))
     return res.status(400).json({ error: 'Invalid image format. Only JPEG or PNG is supported.' });
 
-  let worker = null;
-
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 
-    // 🧪 Preprocess into 5 versions
+    // 🧪 Preprocess into 5 versions in parallel
     const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer, blueInkV2Buffer] = await Promise.all([
-      // 1. Grayscale
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .grayscale()
-        .modulate({ brightness: 1.3, contrast: 1.6 })
-        .sharpen()
-        .toFormat('png')
-        .toBuffer(),
+      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
+        .grayscale().modulate({ brightness: 1.3, contrast: 1.6 }).sharpen().toFormat('png').toBuffer(),
 
-      // 2. Color-enhanced
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 })
-        .sharpen()
-        .toFormat('png')
-        .toBuffer(),
+      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 }).sharpen().toFormat('png').toBuffer(),
 
-      // 3. Handwriting boost
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 })
-        .sharpen({ sigma: 1.2 })
-        .toFormat('png')
-        .toBuffer(),
+      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 }).sharpen({ sigma: 1.2 }).toFormat('png').toBuffer(),
 
-      // 4. Blue ink emphasis
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.7, saturation: 2.5 })
-        .tint({ r: 0, g: 0, b: 255 })
-        .sharpen({ sigma: 2.0 })
-        .threshold(100)
-        .toFormat('png')
-        .toBuffer(),
+      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
+        .modulate({ brightness: 1.7, saturation: 2.5 }).tint({ r: 0, g: 0, b: 255 })
+        .sharpen({ sigma: 2.0 }).threshold(100).toFormat('png').toBuffer(),
 
-      // 5. Aggressive blue ink cleanup
-      sharp(buffer)
-        .resize({ width: 1600, withoutEnlargement: true })
-        .linear(1.1, -40)
-        .modulate({ brightness: 1.5, saturation: 3.0 })
-        .sharpen({ sigma: 3.0 })
-        .tint({ r: 90, g: 90, b: 255 })
-        .threshold(110)
-        .toFormat('png')
-        .toBuffer(),
+      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
+        .linear(1.1, -40).modulate({ brightness: 1.5, saturation: 3.0 })
+        .sharpen({ sigma: 3.0 }).tint({ r: 90, g: 90, b: 255 })
+        .threshold(110).toFormat('png').toBuffer(),
     ]);
 
-    // 🧠 Create worker
-    worker = await createWorker('eng', 1, {
-      langPath: path.join(__dirname, 'lang-data'),
-      oem: 1,
-    });
+    if (!ocrWorker) {
+      return res.status(500).json({ error: 'OCR engine not initialized.' });
+    }
 
-    await worker.setParameters({
-      tessedit_pageseg_mode: '6', // Block of text (better for blue ink lines)
-      user_defined_dpi: '450',
-      preserve_interword_spaces: '1',
-    });
+    const variants = [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer, blueInkV2Buffer];
+    let bestResult = null;
 
-    // 🔍 Run OCR on all versions
-    const [grayResult, colorResult, handwritingResult, blueResult, blueV2Result] = await Promise.all([
-      worker.recognize(grayBuffer),
-      worker.recognize(colorBuffer),
-      worker.recognize(handwritingBuffer),
-      worker.recognize(blueInkBuffer),
-      worker.recognize(blueInkV2Buffer),
-    ]);
+    // 🔍 Run sequential OCR with early cutoff
+    for (let i = 0; i < variants.length; i++) {
+      const result = await ocrWorker.recognize(variants[i]);
+      const { text, confidence } = result.data;
 
-    const results = [
-      { type: 'gray', ...grayResult.data },
-      { type: 'color', ...colorResult.data },
-      { type: 'handwriting', ...handwritingResult.data },
-      { type: 'blue-ink', ...blueResult.data },
-      { type: 'blue-v2', ...blueV2Result.data }
-    ];
+      if (!bestResult || confidence > bestResult.confidence) {
+        bestResult = { text, confidence, variant: i };
+      }
 
-    results.sort((a, b) => b.confidence - a.confidence || b.text.length - a.text.length);
-    const best = results[0];
+      if (confidence > 85 && text.trim().length > 20) {
+        console.log(`✅ Early stop: OCR good enough on variant ${i}, confidence ${confidence}`);
+        break;
+      }
+    }
 
-    console.log("Best OCR Type:", best.type);
-    console.log("OCR Confidence:", best.confidence);
+    let extractedText = bestResult?.text || "";
 
-    let extractedText = best.text;
+    console.log("Best OCR Variant:", bestResult?.variant);
+    console.log("OCR Confidence:", bestResult?.confidence);
 
-    // ⛔ Fallback to Vision OCR if poor confidence or short/garbled output
-    if (best.confidence < 70 || !best.text.trim() || best.text.trim().length < 20 || !/[a-zA-Z]/.test(best.text)) {
-      console.log('⚠️ Low OCR confidence. Falling back to OpenAI Vision OCR...');
-      try {
-        const visionText = await extractTextWithOpenAIVision(buffer);
+    // 🚨 Vision fallback for poor or broken math text
+    const mathLike = /[0-9x=+\-*/()]/.test(extractedText);
+    if (
+      !extractedText.trim() ||
+      bestResult.confidence < 70 ||
+      extractedText.length < 20 ||
+      (mathLike && extractedText.split(" ").length <= 5) // too short for a math identity
+    ) {
+      console.log("⚠️ Falling back to OpenAI Vision OCR...");
+      const visionText = await extractTextWithOpenAIVision(buffer);
 
-        if (!visionText || visionText.trim().length < 10) {
-          return res.status(400).json({
-            error: '🧐 OCR failed. Vision model could not extract usable text either.',
-          });
-        }
-
+      if (visionText && visionText.trim().length > 10) {
         extractedText = visionText;
-      } catch (err) {
-        const errorDetails = err.response?.data || err.message || err;
-        console.error('❌ Vision OCR failed with:', errorDetails);
-        return res.status(500).json({
-          error: 'Vision OCR failed.',
-          details: errorDetails,
-        });
+      } else {
+        return res.status(400).json({ error: "OCR failed. Vision model could not extract usable text." });
       }
     }
 
@@ -717,10 +695,6 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
       .replace(/[-\u001F]+/g, " ")
       .trim();
 
-    if (!cleanedText) {
-      return res.status(400).json({ error: 'No clean text recognized after processing.' });
-    }
-
     // ✅ Spell correction
     const wordsArray = cleanedText.split(/\s+/);
     const correctedWords = wordsArray.map(word => {
@@ -729,26 +703,30 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
       }
       return word;
     });
+    const correctedText = correctedWords.join(" ");
 
-    const correctedText = correctedWords.join(' ');
-    console.log("Spell-corrected:", correctedText);
+    // 🤖 GPT contextual cleanup (math-aware)
+    const finalCorrectedText = await correctTextWithGPT(`
+The following OCR text comes from a student's handwritten or printed math problem. 
+Correct any OCR mistakes while preserving mathematical expressions exactly.
 
-    // 🤖 GPT contextual cleanup
-    const finalCorrectedText = await correctTextWithGPT(correctedText);
-    console.log("GPT-cleaned OCR Text:", finalCorrectedText);
+Input:
+${correctedText}
+    `);
+
+    console.log("📘 Final OCR Output:", finalCorrectedText);
 
     return res.json({ text: finalCorrectedText });
 
   } catch (error) {
-    console.error('OCR Error:', error.message, error.stack);
+    console.error("❌ OCR Error:", error.message, error.stack);
     return res.status(500).json({
-      error: 'Failed to process OCR. Ensure the image contains clear text and good lighting.',
-      details: error.message
+      error: "Failed to process OCR. Ensure the image contains clear text and good lighting.",
+      details: error.message,
     });
-  } finally {
-    if (worker) await worker.terminate();
   }
 });
+
 
 
 
@@ -1047,6 +1025,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
