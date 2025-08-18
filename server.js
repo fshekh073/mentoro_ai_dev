@@ -922,7 +922,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
       }
 
       // ✅ Clean the final answer before saving
-      const cleanedAnswer = streamed.replace(/\\n/g, '\n').trim();
+      const cleanedStreamed = streamed.replace(/\n/g, "<br>");
 
       // Save to memory + Supabase
       explanationCache.set(cacheKey, cleanedAnswer);
@@ -935,7 +935,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           language,
           role,
           fast_mode: !!fastMode,
-          answer_html: cleanedAnswer,
+          answer_html: cleanedStreamed,
           model,
           tokens: null,
           uses: 1,
@@ -1157,6 +1157,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
