@@ -18,6 +18,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 //const fetch = require('node-fetch');
 const { PassThrough } = require('stream');
 const { OpenAI } = require('openai');
+const crypto = require('crypto');
 
 
 
@@ -26,6 +27,19 @@ console.log("OPENAI_API_KEY loaded:", process.env.OPENAI_API_KEY ? "Yes (length:
 
 const app = express();
 const port = 5000;
+
+function normalizeQuestion(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[“”"‘’']/g, "'")
+    .replace(/[^a-z0-9\s\-\+\*\(\)\/\.,:;=]/g, '') // keep common math & punctuation
+    .trim();
+}
+
+function sha256(str) {
+  return crypto.createHash('sha256').update(str).digest('hex');
+}
 
 // ================== AUTH MIDDLEWARE ==================
 const authenticateToken = (req, res, next) => {
@@ -790,8 +804,36 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
     return res.json({ explanation: `⚠️ I can't explain this topic as it may contain sensitive content.` });
   }
 
+  // 1) In-memory cache
   if (explanationCache.has(cacheKey)) {
     return res.json({ explanation: explanationCache.get(cacheKey) });
+  }
+
+  // 2) Supabase cache check
+  const normalized = normalizeQuestion(question);
+  const qhash = sha256(`${normalized}|${grade}|${language}|${role}|${fastMode}`);
+  try {
+    const { data: cached, error: cacheErr } = await supabase
+      .from('answer_cache')
+      .select('answer_html, id, uses')
+      .eq('qhash', qhash)
+      .eq('grade', grade)
+      .eq('language', language)
+      .eq('role', role)
+      .eq('fast_mode', !!fastMode)
+      .maybeSingle();
+
+    if (!cacheErr && cached?.answer_html) {
+      // update metadata in background
+      supabase.from('answer_cache')
+        .update({ uses: (cached.uses || 1) + 1, last_used: new Date().toISOString() })
+        .eq('id', cached.id);
+
+      explanationCache.set(cacheKey, cached.answer_html);
+      return res.json({ explanation: cached.answer_html });
+    }
+  } catch (e) {
+    console.error('Supabase read error (answer_cache):', e.message);
   }
 
   try {
@@ -817,7 +859,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
     }
 
     const prompt = buildExplanationPrompt(question, grade, language, role);
-    const model = 'gpt-4o';
+    const model = fastMode ? 'gpt-4o-mini' : 'gpt-4o';
 
     const responseStream = await axios({
       method: 'post',
@@ -846,7 +888,8 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const stream = new PassThrough();
+    let streamed = '';
+
     responseStream.data.on('data', (chunk) => {
       const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
       for (const line of lines) {
@@ -862,6 +905,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               res.write(content);
+              streamed += content;
             }
           } catch (e) {
             console.error("Parsing error:", e);
@@ -876,7 +920,29 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           .from('usage_limits')
           .upsert([{ user_id: userId, date: today, explain_count: 1 }], { onConflict: ['user_id', 'date'] });
       }
-      console.log(`✅ Explanation streamed successfully`);
+
+      // Save to memory + Supabase
+      explanationCache.set(cacheKey, streamed);
+      try {
+        await supabase.from('answer_cache').upsert({
+          question_raw: question,
+          question_normalized: normalized,
+          qhash,
+          grade,
+          language,
+          role,
+          fast_mode: !!fastMode,
+          answer_html: streamed,
+          model,
+          tokens: null,
+          uses: 1,
+          last_used: new Date().toISOString()
+        }, { onConflict: 'qhash,grade,language,role,fast_mode' });
+      } catch (e) {
+        console.error('Supabase upsert error (answer_cache):', e.message);
+      }
+
+      console.log(`✅ Explanation streamed & cached`);
     });
 
     responseStream.data.on('error', (err) => {
@@ -890,20 +956,47 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
   }
 });
 
+
 //const configuration = new Configuration({
 //  apiKey: process.env.OPENAI_API_KEY
 //});
 //const openai = new OpenAIApi(configuration);
 
 app.post('/api/quiz', authenticateToken, async (req, res) => {
-  const { question, explanation, grade, language } = req.body;
+  const { question, explanation, grade, language, role } = req.body;
   const cacheKey = `${question}-${grade}-${language}-quiz`;
 
   console.log(`[Quiz Log] Received quiz request for topic: "${question}" (Grade: ${grade}, Language: ${language})`);
 
+  // 1) In-memory cache
   if (quizCache.has(cacheKey)) {
     console.log(`[Quiz Log] Returning quiz from cache for topic: "${question}"`);
     return res.json({ questions: quizCache.get(cacheKey) });
+  }
+
+  // 2) Supabase cache
+  const normalized = normalizeQuestion(question);
+  const qhash = sha256(`${normalized}|${grade}|${language}|${role}`);
+  try {
+    const { data: cached, error: cacheErr } = await supabase
+      .from('quiz_cache')
+      .select('quiz_json, id, uses')
+      .eq('qhash', qhash)
+      .eq('grade', grade)
+      .eq('language', language)
+      .eq('role', role)
+      .maybeSingle();
+
+    if (!cacheErr && cached?.quiz_json) {
+      supabase.from('quiz_cache')
+        .update({ uses: (cached.uses || 1) + 1, last_used: new Date().toISOString() })
+        .eq('id', cached.id);
+
+      quizCache.set(cacheKey, cached.quiz_json);
+      return res.json({ questions: cached.quiz_json });
+    }
+  } catch (e) {
+    console.error('Supabase read error (quiz_cache):', e.message);
   }
 
   const lowerQuestion = question.toLowerCase();
@@ -932,9 +1025,7 @@ app.post('/api/quiz', authenticateToken, async (req, res) => {
         temperature: 0.7,
       },
       {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`
-        }
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
       }
     );
 
@@ -942,7 +1033,24 @@ app.post('/api/quiz', authenticateToken, async (req, res) => {
     console.log('[Quiz Log] Raw response from LLM for quiz:', rawQuizResponse);
 
     const parsedQuestions = parseQuiz(rawQuizResponse);
+
+    // Save to memory + Supabase
     quizCache.set(cacheKey, parsedQuestions);
+    try {
+      await supabase.from('quiz_cache').upsert({
+        question_raw: question,
+        question_normalized: normalized,
+        qhash,
+        grade,
+        language,
+        role,
+        quiz_json: parsedQuestions,
+        uses: 1,
+        last_used: new Date().toISOString()
+      }, { onConflict: 'qhash,grade,language,role' });
+    } catch (e) {
+      console.error('Supabase upsert error (quiz_cache):', e.message);
+    }
 
     console.log(`[Quiz Log] Successfully generated and parsed ${parsedQuestions.length} quiz questions.`);
     res.json({ questions: parsedQuestions });
@@ -951,6 +1059,7 @@ app.post('/api/quiz', authenticateToken, async (req, res) => {
     res.status(500).json({ questions: [], error: 'Failed to generate quiz. Please try again.' });
   }
 });
+
 
 // ================== HELPER FUNCTIONS FOR AI RESPONSE PARSING ==================
 function formatResponse(text, grade) {
@@ -1045,6 +1154,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
