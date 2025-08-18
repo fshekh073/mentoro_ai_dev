@@ -921,8 +921,11 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           .upsert([{ user_id: userId, date: today, explain_count: 1 }], { onConflict: ['user_id', 'date'] });
       }
 
+      // ✅ Clean the final answer before saving
+      const cleanedAnswer = streamed.replace(/\\n/g, '\n').trim();
+
       // Save to memory + Supabase
-      explanationCache.set(cacheKey, streamed);
+      explanationCache.set(cacheKey, cleanedAnswer);
       try {
         await supabase.from('answer_cache').upsert({
           question_raw: question,
@@ -932,7 +935,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           language,
           role,
           fast_mode: !!fastMode,
-          answer_html: streamed,
+          answer_html: cleanedAnswer,
           model,
           tokens: null,
           uses: 1,
@@ -942,7 +945,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
         console.error('Supabase upsert error (answer_cache):', e.message);
       }
 
-      console.log(`✅ Explanation streamed & cached`);
+      console.log(`✅ Explanation streamed, cleaned & cached`);
     });
 
     responseStream.data.on('error', (err) => {
@@ -1154,6 +1157,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
