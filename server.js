@@ -793,7 +793,7 @@ async function extractTextWithOpenAIVision(imageBuffer) {
 }
 // ================== EXISTING AI API ENDPOINTS ==================
 app.post('/api/explain', authenticateToken, async (req, res) => {
-  const { question, grade, language, role, fastMode = false } = req.body;
+  const { question, grade, language, role, fastMode = true } = req.body;
   const userId = req.user?.id;
   const username = req.user?.username;
   const cacheKey = `${question}-${grade}-${language}-${role}-${fastMode}`;
@@ -1154,6 +1154,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
