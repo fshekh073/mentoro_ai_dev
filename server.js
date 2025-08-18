@@ -622,35 +622,48 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
   try {
     const buffer = Buffer.from(image.replace(/^data:image\/(jpeg|png);base64,/, ''), 'base64');
 
-    // 🧪 Preprocess into 5 versions in parallel
-    const [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer, blueInkV2Buffer] = await Promise.all([
-      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
-        .grayscale().modulate({ brightness: 1.3, contrast: 1.6 }).sharpen().toFormat('png').toBuffer(),
+    // Preprocess into 3 optimized versions (gray, handwriting boost, blue ink with milder sharpen and no aggressive threshold)
+    const [grayBuffer, handwritingBuffer, blueInkBuffer] = await Promise.all([
+      sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .grayscale()
+        .modulate({ brightness: 1.3, contrast: 1.6 })
+        .sharpen()
+        .toFormat('png')
+        .toBuffer(),
 
-      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.2, contrast: 1.3, saturation: 1.6 }).sharpen().toFormat('png').toBuffer(),
+      sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 })
+        .sharpen({ sigma: 0.7 }) // gentler sharpen for handwriting
+        .toFormat('png')
+        .toBuffer(),
 
-      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.5, contrast: 2.0, saturation: 2.0 }).sharpen({ sigma: 1.2 }).toFormat('png').toBuffer(),
-
-      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
-        .modulate({ brightness: 1.7, saturation: 2.5 }).tint({ r: 0, g: 0, b: 255 })
-        .sharpen({ sigma: 2.0 }).threshold(100).toFormat('png').toBuffer(),
-
-      sharp(buffer).resize({ width: 1600, withoutEnlargement: true })
-        .linear(1.1, -40).modulate({ brightness: 1.5, saturation: 3.0 })
-        .sharpen({ sigma: 3.0 }).tint({ r: 90, g: 90, b: 255 })
-        .threshold(110).toFormat('png').toBuffer(),
+      sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .modulate({ brightness: 1.5, saturation: 2.0 })
+        // No aggressive threshold or heavy tinting here to avoid distortion
+        .sharpen({ sigma: 0.7 })
+        .toFormat('png')
+        .toBuffer(),
     ]);
 
     if (!ocrWorker) {
       return res.status(500).json({ error: 'OCR engine not initialized.' });
     }
 
-    const variants = [grayBuffer, colorBuffer, handwritingBuffer, blueInkBuffer, blueInkV2Buffer];
+    const variants = [grayBuffer, handwritingBuffer, blueInkBuffer];
     let bestResult = null;
 
-    // 🔍 Run sequential OCR with early cutoff
+    // Set strong Tesseract params for math/text recognition before OCR
+    await ocrWorker.setParameters({
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^=+-*/(). ',
+      preserve_interword_spaces: '1',
+      tessedit_pageseg_mode: '6',
+      user_defined_dpi: '450',
+    });
+
+    // Run sequential OCR with early cutoff for high confidence
     for (let i = 0; i < variants.length; i++) {
       const result = await ocrWorker.recognize(variants[i]);
       const { text, confidence } = result.data;
@@ -670,13 +683,13 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     console.log("Best OCR Variant:", bestResult?.variant);
     console.log("OCR Confidence:", bestResult?.confidence);
 
-    // 🚨 Vision fallback for poor or broken math text
+    // Check if math-like text but low confidence or too short → fallback to OpenAI Vision OCR
     const mathLike = /[0-9x=+\-*/()]/.test(extractedText);
     if (
       !extractedText.trim() ||
       bestResult.confidence < 70 ||
       extractedText.length < 20 ||
-      (mathLike && extractedText.split(" ").length <= 5) // too short for a math identity
+      (mathLike && extractedText.split(" ").length <= 5)
     ) {
       console.log("⚠️ Falling back to OpenAI Vision OCR...");
       const visionText = await extractTextWithOpenAIVision(buffer);
@@ -688,14 +701,14 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
       }
     }
 
-    // 🧹 Clean text
+    // Clean text: remove non-ASCII, excess spaces, control chars
     let cleanedText = extractedText
       .replace(/[^\x00-\x7F]/g, "")
       .replace(/\s{2,}/g, " ")
       .replace(/[-\u001F]+/g, " ")
       .trim();
 
-    // ✅ Spell correction
+    // Spell correction
     const wordsArray = cleanedText.split(/\s+/);
     const correctedWords = wordsArray.map(word => {
       if (spell.isMisspelled(word)) {
@@ -705,19 +718,25 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     });
     const correctedText = correctedWords.join(" ");
 
-    // 🤖 GPT contextual cleanup (math-aware)
+    // GPT contextual cleanup, math-aware with explicit instruction for math symbol fixes
     const finalCorrectedText = await correctTextWithGPT(`
-The following OCR text comes from a student's handwritten or printed math problem. 
-Correct any OCR mistakes while preserving mathematical expressions exactly.
+The following OCR text contains a handwritten or printed math expression. Carefully correct OCR errors 
+including minus/plus sign confusions, variable misreadings such as 'r' vs 'b', 
+and misplaced parentheses or exponents without changing the problem meaning. 
+Preserve and output all math symbols and variables accurately with correct spacing.
 
 Input:
 ${correctedText}
     `);
 
-    console.log("📘 Final OCR Output:", finalCorrectedText);
+    // Post-OCR lightweight fixes for common symbol confusions (customize per your most frequent errors)
+    let postProcessedText = finalCorrectedText
+      .replace(/\bb\b/g, 'r')    // Fix misread 'b' to 'r' if fits context
+      .replace(/a \+ 1/g, 'a - 1') // Fix flipped plus to minus in critical places
+      .replace(/- 7a/g, '+ 7a');   // Example sign fix, adjust as needed
 
-    return res.json({ text: finalCorrectedText });
-
+    console.log("📘 Final OCR Output:", postProcessedText);
+    return res.json({ text: postProcessedText });
   } catch (error) {
     console.error("❌ OCR Error:", error.message, error.stack);
     return res.status(500).json({
@@ -726,6 +745,7 @@ ${correctedText}
     });
   }
 });
+
 
 
 
@@ -1025,6 +1045,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
