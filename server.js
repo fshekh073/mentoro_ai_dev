@@ -157,9 +157,31 @@ const getLanguageInstructions = (language) => {
 
 // ================== PROMPT BUILDERS ==================
 const buildExplanationPrompt = (topic, grade, language, role) => {
-  const { langInstruction, langExamples } = getLanguageInstructions(language);
-  const { greeting, sections, instructions, exampleCount } = getDepthInstructions(grade);
+  const { langInstruction } = getLanguageInstructions(language);
+  const { greeting, sections, instructions } = getDepthInstructions(grade);
   const tone = getToneForClass(grade);
+
+  // Build required section instructions dynamically
+  const sectionInstructions = sections
+    .map((section, idx) => `${idx + 1}. <strong>${section}:</strong><br/>`)
+    .join("\n");
+
+  // Example output builder
+  let exampleOutput = `"${greeting}"<br/><br/>\n\n`;
+  sections.forEach((section, idx) => {
+    exampleOutput += `<strong>${section}:</strong><br/>\n`;
+    if (idx === 0) {
+      exampleOutput += `[Clear ${language} definition]<br/><br/>\n\n`;
+    } else if (idx === 1) {
+      exampleOutput += grade <= 5
+        ? "1) [Child-friendly example 1]<br/>2) [Example 2]<br/><br/>\n\n"
+        : "1) [NCERT-style example]<br/>2) [Real-world application]<br/>3) [Additional example]<br/><br/>\n\n";
+    } else if (idx === sections.length - 1) {
+      exampleOutput += `[${grade <= 8 ? "Interesting fact" : "Key scientific principle"}]<br/>\n\n`;
+    } else {
+      exampleOutput += "[Explanation/example content]<br/><br/>\n\n";
+    }
+  });
 
   return `
 You are an expert AI tutor for ${grade} students in India. ${greeting}
@@ -171,9 +193,7 @@ You are an expert AI tutor for ${grade} students in India. ${greeting}
 - **Role:** ${role}
 
 **Required Sections (use these headings):**
-1. <strong>${sections[0]}:</strong><br/>
-2. <strong>${sections[1]}:</strong><br/>
-3. <strong>${sections[2]}:</strong><br/>
+${sectionInstructions}
 
 **Formatting Rules:**
 - Format all section titles in: <strong>Section Title:</strong><br/>
@@ -183,25 +203,13 @@ You are an expert AI tutor for ${grade} students in India. ${greeting}
 
 **Special Rules:**
 ${instructions}
-${['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(grade) ?
-  "- Include <strong>bold</strong> technical terms<br/>- Add relevant formulas<br/>- Connect to real-world applications" :
-  "- Use simple analogies and fun examples"}
+${['Class 9', 'Class 10', 'Class 11', 'Class 12'].includes(grade)
+  ? "- Include <strong>bold</strong> technical terms<br/>- Add relevant formulas<br/>- Connect to real-world applications"
+  : "- Use simple analogies and fun examples"}
 
 **Example Output:**
 
-"${greeting}"<br/><br/>
-
-<strong>${sections[0]}:</strong><br/>
-[Clear ${language} definition]<br/><br/>
-
-<strong>${sections[1]}:</strong><br/>
-${grade <= 5 ?
-  "1) [Child-friendly example 1]<br/>2) [Example 2]" :
-  "1) [NCERT-style example]<br/>2) [Real-world application]<br/>3) [Additional example]"
-}<br/><br/>
-
-<strong>${sections[2]}:</strong><br/>
-[${grade <= 8 ? "Interesting fact" : "Key scientific principle"}]<br/>
+${exampleOutput}
 `.trim();
 };
 
@@ -925,7 +933,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
       const cleanedStreamed = streamed.replace(/\n/g, "<br>");
 
       // Save to memory + Supabase
-      explanationCache.set(cacheKey, cleanedAnswer);
+      explanationCache.set(cacheKey, cleanedStreamed);
       try {
         await supabase.from('answer_cache').upsert({
           question_raw: question,
@@ -940,7 +948,8 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
           tokens: null,
           uses: 1,
           last_used: new Date().toISOString()
-        }, { onConflict: 'qhash,grade,language,role,fast_mode' });
+        }, { onConflict: ['qhash','grade','language','role','fast_mode'] });
+         console.log(`✅ Explanation cached in Supabase`);
       } catch (e) {
         console.error('Supabase upsert error (answer_cache):', e.message);
       }
@@ -1157,6 +1166,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
