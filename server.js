@@ -838,7 +838,7 @@ app.post('/api/explain', authenticateToken, async (req, res) => {
         .eq('id', cached.id);
 
       explanationCache.set(cacheKey, cached.answer_html);
-      return res.json({ explanation: cached.answer_html });
+      return res.send(cached.answer_html);
     }
   } catch (e) {
     console.error('Supabase read error (answer_cache):', e.message);
@@ -1166,6 +1166,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
