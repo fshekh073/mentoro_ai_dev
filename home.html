@@ -42,16 +42,24 @@
 
   /* Enhanced Gradient Background Animation */
   .animated-gradient-bg {
-    background: linear-gradient(135deg, #a3bffa, #fefcbf, #9ae6b4, #fed7aa);
-    background-size: 600% 600%;
-    animation: gradientShift 20s ease infinite;
-  }
+  background: linear-gradient(135deg, #0f172a, #1e293b, #111827);
+  background-size: 300% 300%;
+  animation: gradientShift 20s ease infinite;
+  color: #f9fafb; /* default text color */
+}
   @keyframes gradientShift {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
-
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
   /* Enhanced Speech Popup */
   .speech-popup {
     position: fixed;
@@ -228,33 +236,32 @@
 
   /* Enhanced Button Styles */
   .btn-primary {
-    background-color: #6366f1;
-    color: white;
-    padding: 0.75rem 1.75rem;
-    border-radius: 0.75rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
-  }
-  .btn-primary:hover {
-    background-color: #4f46e5;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(99, 102, 241, 0.4);
-  }
-  .btn-secondary {
-    background-color: #e5e7eb;
-    color: #1e293b;
-    padding: 0.75rem 1.75rem;
-    border-radius: 0.75rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  }
-  .btn-secondary:hover {
-    background-color: #d1d5db;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
-  }
+  background: linear-gradient(90deg, #22d3ee, #8b5cf6);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+}
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.9),
+              0 0 30px rgba(139, 92, 246, 0.8);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f9fafb;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
   .btn-primary:focus-visible {
   outline: 3px solid #6366f1;
   outline-offset: 2px;
@@ -2051,6 +2058,7 @@
 </body>
 	
 </html>
+
 
 
 
