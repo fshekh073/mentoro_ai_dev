@@ -54,35 +54,33 @@
     }
 
     /* Primary button styling */
-    .btn-primary {
-      background-color: #14b8a6;
-      color: white;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.75rem;
-      font-weight: 600;
-      transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .btn-primary:hover {
-      background-color: #0d9488;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-    }
-    /* Secondary button styling */
-    .btn-secondary {
-      background-color: #f0f4f8;
-      color: #4a5568;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.75rem;
-      font-weight: 600;
-      transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    .btn-secondary:hover {
-      background-color: #e2e8f0;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+  .btn-primary {
+  background: linear-gradient(90deg, #22d3ee, #8b5cf6);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+}
+   .btn-primary:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.9),
+              0 0 30px rgba(139, 92, 246, 0.8);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f9fafb;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
     /* Custom select dropdown arrow */
     .custom-select {
       appearance: none;
@@ -107,13 +105,24 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    input, select, textarea {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f9fafb;
+}
 
     /* Input focus styles */
     input:focus, select:focus {
-      outline: none;
-      border-color: transparent;
-      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4);
-    }
+  outline: none;
+  border-color: #22d3ee;
+  box-shadow: 0 0 8px #22d3ee;
+}
+
+
+    .neon-text {
+  color: #22d3ee;
+  text-shadow: 0 0 10px #22d3ee, 0 0 20px #8b5cf6;
+}
 
     /* Custom Alert/Modal styles */
     .custom-modal-content {
@@ -655,5 +664,6 @@
   </script>
 </body>
 </html>
+
 
 
