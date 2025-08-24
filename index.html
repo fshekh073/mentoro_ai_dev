@@ -28,9 +28,10 @@
 
     /* Dynamic MAGICAL Gradient Background Animation */
     .animated-gradient-bg {
-      background: linear-gradient(135deg, #6366f1, #14b8a6, #0ea5e9, #a855f7);
-      background-size: 400% 400%;
-      animation: gradientShift 18s ease infinite;
+       background: linear-gradient(135deg, #0f172a, #1e293b, #111827);
+      background-size: 300% 300%;
+      animation: gradientShift 20s ease infinite;
+      color: #f9fafb; /* default text color */
     }
     @keyframes gradientShift {
       0% { background-position: 0% 50%; }
@@ -39,11 +40,12 @@
     }
 
   .glass-card {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
 }
 
     /* Custom shadow for cards/modals */
@@ -653,4 +655,5 @@
   </script>
 </body>
 </html>
+
 
