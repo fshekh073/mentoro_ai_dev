@@ -825,8 +825,8 @@
         modal.id = modalId;
         modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] p-4';
         modal.innerHTML = `
-          <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full transform scale-95 opacity-0 transition-all duration-300 ease-out" id="customModalContent">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4 playful-text" id="customModalTitle"></h3>
+            <div className="glass-card p-8 shadow-3xl w-full max-w-md">
+			<h3 className="text-2xl font-bold text-gray-800 mb-4 playful-text" id="customModalTitle"></h3>
             <p className="text-gray-700 mb-6" id="customModalMessage"></p>
             <div className="flex justify-end space-x-4" id="customModalActions"></div>
           </div>
@@ -2006,7 +2006,7 @@
 
 <!-- Spinner Popup shown during OCR -->
 <div id="ocrSpinner" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[10000] hidden">
-  <div class="bg-white rounded-xl p-6 shadow-2xl flex items-center gap-4 animate-fade-in">
+<div className="glass-card p-8 shadow-3xl w-full max-w-md">
     <svg class="w-8 h-8 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
@@ -2051,6 +2051,7 @@
 </body>
 	
 </html>
+
 
 
 
