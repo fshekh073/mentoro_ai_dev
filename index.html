@@ -32,7 +32,17 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+.mission-heading {
+  background: linear-gradient(90deg, #22c55e, #15803d); /* bright → dark green */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
+    .welcome-heading {
+  background: linear-gradient(90deg, #f3f4f6, #cbd5e1); /* dark white → light gray */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
     /* Dynamic MAGICAL Gradient Background Animation */
     .animated-gradient-bg {
 background: linear-gradient(135deg, #a78bfa, #8b5cf6, #7c3aed);
@@ -64,6 +74,13 @@ input {
     .shadow-3xl {
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
     }
+
+  .header-icon {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: initial !important;
+  color: #000 !important; /* solid black */
+}
 
     /* Primary button styling */
   .btn-primary {
@@ -380,7 +397,7 @@ input {
 
       return (
         <div className="glass-card p-8 shadow-3xl w-full max-w-md">
-          <h2 className="text-4xl font-bold mb-8 text-center text-gray-800">Welcome Back!</h2>
+          <h2 className="text-4xl font-bold mb-8 text-center welcome-heading">Welcome Back!</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="identifier" className="block text-gray-700 text-base font-semibold mb-2">
@@ -674,19 +691,19 @@ input {
       };
 
       return (
-        <div className="auth-container">
-          <div className="header-section fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 shadow-lg py-5">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-gray-800 drop-shadow-lg text-center">
-              <span class="header-icon">🎓</span> Mentoro AI
-            </h1>
-          </div>
+        <div className="header-section fixed top-0 left-0 w-full bg-[#1e1b4b] z-50 shadow-lg py-5">
+  <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-lg text-center">
+    <span className="header-icon text-black">🎓</span> 
+    <span className="gradient-heading">Mentoro AI</span>
+  </h1>
+</div>
           {/* Main-content div removed */}
          <div class="mission-section neon-card p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
  <h2 class="flex items-center justify-center gap-2 text-3xl font-bold mb-4">
   <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
   </svg>
-  <span class="neon-text">Empowering Students Through AI</span>
+  <h2 className="text-3xl font-bold mb-6 mission-heading"> Empowering Students Through AI </h2>
 </h2>
   <p class="text-gray-200 text-lg md:text-xl leading-relaxed">
     Empowering every student with personalized learning, making education accessible and engaging for all.
@@ -705,6 +722,7 @@ input {
   </script>
 </body>
 </html>
+
 
 
 
