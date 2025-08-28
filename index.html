@@ -698,33 +698,41 @@ input {
   </h1>
 </div>
           {/* Main-content div removed */}
-         <div class="mission-section neon-card p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
-  <div class="flex items-center justify-center gap-2 mb-4">
-    <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+<div className="mission-section neon-card p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
+  <div className="flex items-center justify-center gap-2 mb-4">
+    <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path>
     </svg>
-    <h2 class="text-3xl font-bold mission-heading">
+    <h2 className="text-3xl font-bold mission-heading">
       Empowering Students Through AI
     </h2>
   </div>
 
-  <p class="text-gray-200 text-lg md:text-xl leading-relaxed">
+  <p className="text-gray-200 text-lg md:text-xl leading-relaxed">
     Empowering every student with personalized learning, making education accessible and engaging for all.
   </p>
 </div>
-          <div className="form-section">
-            {view === 'login' && <Login onLoginSuccess={handleLoginSuccess} onNavigateToSignup={() => setView('signup')} />}
-            {view === 'signup' && <Signup onSignupSuccess={handleSignupSuccess} onNavigateToLogin={() => setView('login')} />}
-          </div>
-        </div>
-      );
-    };
+
+<div className="form-section">
+  {view === 'login' && (
+    <Login
+      onLoginSuccess={handleLoginSuccess}
+      onNavigateToSignup={() => setView('signup')}
+    />
+  )}
+  {view === 'signup' && (
+    <Signup
+      onSignupSuccess={handleSignupSuccess}
+      onNavigateToLogin={() => setView('login')}
+    />
+  )}
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
