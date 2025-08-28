@@ -39,7 +39,7 @@
 }
 
     .welcome-heading {
-  background: linear-gradient(90deg, #f3f4f6, #cbd5e1); /* dark white → light gray */
+  background: linear-gradient(90deg, #22c55e, #15803d); /* bright → dark green */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -249,7 +249,7 @@ input {
 
     .mission-section {
       position: absolute;
-      top: 0; /* Positioned relative to auth-container's padding-top */
+      top: 10rem; /* Positioned relative to auth-container's padding-top */
       left: 0;
       width: 24rem;
       padding: 2rem;
@@ -257,7 +257,7 @@ input {
 
     .form-section {
       position: absolute;
-      top: 0; /* Positioned relative to auth-container's padding-top */
+      top: 10rem; /* Positioned relative to auth-container's padding-top */
       right: 0;
       width: 24rem;
       padding: 2rem;
@@ -698,7 +698,7 @@ input {
       <div className="header-section fixed top-0 left-0 w-full bg-[#1e1b4b] z-50 shadow-lg py-5">
         <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-lg text-center">
           <span className="header-icon text-black">🎓</span>
-          <span className="gradient-heading">Mentoro AI</span>
+          <span className="welcome-heading">Mentoro AI</span>
         </h1>
       </div>
 
@@ -754,6 +754,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
