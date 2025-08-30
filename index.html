@@ -83,9 +83,11 @@ input {
 }
 
     .mission-text {
-  color: #ffffff !important;  /* solid white */
-  font-size: 1.125rem;        /* text-lg */
+  color: #ffffff !important;   /* shining white */
+  font-size: 1.125rem;         /* text-lg */
   line-height: 1.6;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
 }
 .mission-card {
   background: rgba(255, 255, 255, 0.9);
@@ -247,9 +249,7 @@ input {
     .header-section {
     background-color: #1e1b4b; /* solid dark indigo background */
   color: #ffffff; /* fallback */
-  color: #ffffff !important;  /* solid white */
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff !important;  /* solid white */ 
   font-weight: 700;
     }
 
@@ -782,6 +782,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
