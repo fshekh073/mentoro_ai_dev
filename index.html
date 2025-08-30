@@ -235,11 +235,20 @@ input {
     }
 
     .header-section {
+    background-color: #1e1b4b; /* solid dark indigo background */
+  color: #ffffff; /* fallback */
   color: #ffffff !important;  /* solid white */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 700;
     }
+
+  .header-title {
+  color: #ffffff !important;  /* solid white text */
+  font-weight: 800;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+}
 
   .welcome-card {
   background: rgba(255, 255, 255, 0.9);
@@ -710,12 +719,12 @@ input {
       <div className="header-section fixed top-0 left-0 w-full bg-[#1e1b4b] z-50 shadow-lg py-5">
         <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-lg text-center">
           <span className="header-icon text-black">🎓</span>
-          <span className="header-section">Mentoro AI</span>
+          <span className="header-title">Mentoro AI</span>
         </h1>
       </div>
 
       {/* Mission Section */}
-<div className="mission-section neon-card p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
+<div className="mission-section welcome-heading p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-4">
           <svg
             className="w-8 h-8 text-green-400"
@@ -766,6 +775,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
