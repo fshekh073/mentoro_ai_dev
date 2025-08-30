@@ -318,10 +318,14 @@ input {
   color: #000000 !important;
 }
 
-     .mission-text {
+    .mission-text {
+  /*
+  The background-clip and text-fill-color properties are what make the text transparent.
+  We are unsetting them here to force a solid color.
+  */
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: initial !important;
   color: #000000 !important;
-  font-size: 1.125rem; /* text-lg */
-  line-height: 1.6; 
 }
   </style>
 </head>
@@ -785,6 +789,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
