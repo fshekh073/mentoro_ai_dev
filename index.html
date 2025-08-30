@@ -33,7 +33,7 @@
   -webkit-text-fill-color: transparent;
 }
 .mission-heading {
-  color: #000000 !important; /* pure black */
+  color: #22c55e !important;  /* Tailwind green-500 */
   -webkit-background-clip: unset !important;
   -webkit-text-fill-color: unset !important;
 }
@@ -80,6 +80,12 @@ input {
   -webkit-background-clip: unset !important;
   -webkit-text-fill-color: initial !important;
   color: #000 !important; /* solid black */
+}
+
+    .mission-text {
+  color: #ffffff !important;  /* solid white */
+  font-size: 1.125rem;        /* text-lg */
+  line-height: 1.6;
 }
 .mission-card {
   background: rgba(255, 255, 255, 0.9);
@@ -244,10 +250,8 @@ input {
     }
 
   .header-title {
-  color: #ffffff !important;  /* solid white text */
+  color: #22c55e !important;  /* Tailwind green-500 */
   font-weight: 800;
-  -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: unset !important;
 }
 
   .welcome-card {
@@ -716,12 +720,12 @@ input {
   return (
     <div>
       {/* Header */}
-      <div className="header-section fixed top-0 left-0 w-full bg-[#1e1b4b] z-50 shadow-lg py-5">
-        <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-lg text-center">
-          <span className="header-icon text-black">🎓</span>
-          <span className="header-title">Mentoro AI</span>
-        </h1>
-      </div>
+      <div className="header-section fixed top-0 left-0 w-full bg-white z-50 shadow-lg py-5">
+  <h1 className="text-4xl md:text-6xl font-extrabold drop-shadow-lg text-center">
+    <span className="header-icon">🎓</span>
+    <span className="header-title">Mentoro AI</span>
+  </h1>
+</div>
 
       {/* Mission Section */}
 <div className="mission-section welcome-heading p-8 rounded-3xl text-center mt-10 max-w-3xl mx-auto">
@@ -739,12 +743,12 @@ input {
               d="M12 4v16m8-8H4"
             ></path>
           </svg>
-          <h2 className="text-3xl font-bold mission-heading">
+          <h2 className="mission-heading text-3xl md:text-4xl font-bold mb-4">
             Empowering Students Through AI
           </h2>
         </div>
 
-        <p className="text-gray-200 text-lg md:text-xl leading-relaxed">
+        <p className="mission-text">
           Empowering every student with personalized learning, making education
           accessible and engaging for all.
         </p>
@@ -775,6 +779,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
