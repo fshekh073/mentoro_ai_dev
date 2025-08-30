@@ -82,12 +82,10 @@ input {
   color: #000 !important; /* solid black */
 }
 
-    .mission-text {
-  color: #ffffff !important;   /* shining white */
-  font-size: 1.125rem;         /* text-lg */
-  line-height: 1.6;
-  -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: unset !important;
+   .mission-text {
+  color: #000000 !important;
+  font-size: 1.125rem; /* text-lg */
+  line-height: 1.6; 
 }
 .mission-card {
   background: rgba(255, 255, 255, 0.9);
@@ -254,8 +252,11 @@ input {
     }
 
   .header-title {
-  color: #22c55e !important;  /* Tailwind green-500 */
+  color: #22c55e !important; /* Original color, will be overridden by gradient */
   font-weight: 800;
+  background: linear-gradient(90deg, #22c55e, #15803d); /* Match welcome-heading gradient */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
   .welcome-card {
@@ -277,12 +278,16 @@ input {
     */
 
     .mission-section {
-      position: absolute;
-      top: 10rem; /* Positioned relative to auth-container's padding-top */
-      left: 0;
-      width: 24rem;
-      padding: 2rem;
-    }
+  position: absolute;
+  top: 10rem; /* Positioned relative to auth-container's padding-top */
+  left: 0;
+  width: 24rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.9); /* Match welcome-card background */
+  border-radius: 1.5rem; /* Match welcome-card rounding */
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); /* Match welcome-card shadow */
+  color: #1e293b; /* Match welcome-card text color */
+}
 
     .form-section {
       position: absolute;
@@ -782,6 +787,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
