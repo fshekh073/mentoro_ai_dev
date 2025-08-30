@@ -33,9 +33,9 @@
   -webkit-text-fill-color: transparent;
 }
 .mission-heading {
-  background: linear-gradient(90deg, #22c55e, #15803d); /* bright → dark green */
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #000000 !important; /* pure black */
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
 }
 
     .welcome-heading {
@@ -235,7 +235,7 @@ input {
     }
 
     .header-section {
-  background: linear-gradient(90deg, #0ea5e9, #6366f1); /* cyan → indigo */
+  color: #ffffff !important;  /* solid white */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 700;
@@ -537,7 +537,7 @@ input {
       };
 
       return (
-<div className="glass-card p-8 shadow-3xl w-full max-w-md">
+<div className="welcome-card p-8 shadow-3xl w-full max-w-md">
           <h2 className="text-4xl font-bold mb-8 text-center text-gray-800">Create Your Account</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -766,6 +766,7 @@ root.render(<AuthApp />);
   </script>
 </body>
 </html>
+
 
 
 
