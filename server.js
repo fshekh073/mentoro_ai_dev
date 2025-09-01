@@ -612,24 +612,31 @@ ${inputText}
 }
 
 // ================== GLOBAL OCR WORKER ==================
-let ocrWorker = null;
+// ================== GLOBAL OCR WORKER POOL ==================
+const os = require('os');
+const WORKER_COUNT = Math.min(2, os.cpus().length); // use 2 workers or CPU count
+const ocrWorkers = [];
+
 (async () => {
   try {
-    ocrWorker = await createWorker('eng', 1, {
-      langPath: path.join(__dirname, 'lang-data'),
-      oem: 1,
-    });
+    for (let i = 0; i < WORKER_COUNT; i++) {
+      const worker = await createWorker('eng', 1, {
+        langPath: path.join(__dirname, 'lang-data'),
+        oem: 1,
+      });
 
-    await ocrWorker.setParameters({
-      tessedit_pageseg_mode: '6', // Assume block of text
-      user_defined_dpi: '450',
-      preserve_interword_spaces: '1',
-      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=*/()^',
-    });
+      await worker.setParameters({
+        tessedit_pageseg_mode: '6', // Assume block of text
+        user_defined_dpi: '450',
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+-=*/()^',
+      });
 
-    console.log("✅ Tesseract OCR worker initialized.");
+      ocrWorkers.push(worker);
+    }
+    console.log(`✅ Initialized ${WORKER_COUNT} OCR workers.`);
   } catch (err) {
-    console.error("❌ Failed to init OCR worker:", err);
+    console.error("❌ Failed to init OCR workers:", err);
   }
 })();
 
@@ -675,32 +682,27 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
     }
 
     const variants = [grayBuffer, handwritingBuffer, blueInkBuffer];
-    let bestResult = null;
 
-    // Set strong Tesseract params for math/text recognition before OCR
-    await ocrWorker.setParameters({
-      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^=+-*/(). ',
-      preserve_interword_spaces: '1',
-      tessedit_pageseg_mode: '6',
-      user_defined_dpi: '450',
-    });
+// Pick a worker from the pool (round-robin/random)
+const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
 
-    // Run sequential OCR with early cutoff for high confidence
-    for (let i = 0; i < variants.length; i++) {
-      const result = await ocrWorker.recognize(variants[i]);
-      const { text, confidence } = result.data;
+// Run OCR on all variants in parallel
+const results = await Promise.all(
+  variants.map(v => worker.recognize(v))
+);
 
-      if (!bestResult || confidence > bestResult.confidence) {
-        bestResult = { text, confidence, variant: i };
-      }
+// Pick best result
+let bestResult = results.reduce((best, r, idx) => {
+  const { text, confidence } = r.data;
+  if (!best || confidence > best.confidence) {
+    return { text, confidence, variant: idx };
+  }
+  return best;
+}, null);
 
-      if (confidence > 85 && text.trim().length > 20) {
-        console.log(`✅ Early stop: OCR good enough on variant ${i}, confidence ${confidence}`);
-        break;
-      }
-    }
-
-    let extractedText = bestResult?.text || "";
+let extractedText = bestResult?.text || "";
+console.log("Best OCR Variant:", bestResult?.variant);
+console.log("OCR Confidence:", bestResult?.confidence);
 
     console.log("Best OCR Variant:", bestResult?.variant);
     console.log("OCR Confidence:", bestResult?.confidence);
@@ -1166,6 +1168,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
