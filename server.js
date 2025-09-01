@@ -686,6 +686,13 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 // Pick a worker from the pool (round-robin/random)
 const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
 
+    await worker.setParameters({
+  tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^=+-*/(). ',
+  preserve_interword_spaces: '1',
+  tessedit_pageseg_mode: '6',
+  user_defined_dpi: '450',
+});
+
 // Run OCR on all variants in parallel
 const results = await Promise.all(
   variants.map(v => worker.recognize(v))
@@ -1168,6 +1175,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
