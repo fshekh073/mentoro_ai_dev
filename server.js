@@ -694,7 +694,7 @@ const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
 });
 
 // Run OCR on all variants in parallel
-onst results = await Promise.all(
+const results = await Promise.all(
   variants.map(v => worker.recognize(v))
 );
 
@@ -1187,6 +1187,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
