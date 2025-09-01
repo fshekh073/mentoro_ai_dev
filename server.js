@@ -681,12 +681,14 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'OCR engine not initialized.' });
     }
 
-    const variants = [grayBuffer, handwritingBuffer, blueInkBuffer];
+   const variants = [grayBuffer, handwritingBuffer, blueInkBuffer];
 
-// Pick a worker from the pool (round-robin/random)
-const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
+// Round-robin worker selection
+if (!global.ocrWorkerIndex) global.ocrWorkerIndex = 0;
+const worker = ocrWorkers[global.ocrWorkerIndex % ocrWorkers.length];
+global.ocrWorkerIndex++;
 
-// Reapply strong OCR parameters for NCERT clarity
+// Force-reset params every time (important for NCERT fonts)
 await worker.setParameters({
   tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^=+-*/(). ',
   preserve_interword_spaces: '1',
@@ -694,7 +696,7 @@ await worker.setParameters({
   user_defined_dpi: '450',
 });
 
-// Run OCR on all variants in parallel
+// Run OCR on all variants in parallel (fast)
 const results = await Promise.all(
   variants.map(v => worker.recognize(v))
 );
@@ -702,7 +704,7 @@ const results = await Promise.all(
 let bestResult = null;
 let extractedText = "";
 
-// Try early stop logic like before
+// Hybrid early-stop + best fallback
 for (let i = 0; i < results.length; i++) {
   const { text, confidence } = results[i].data;
 
@@ -717,7 +719,6 @@ for (let i = 0; i < results.length; i++) {
   }
 }
 
-// If early stop didn’t trigger, fall back to best result
 if (!extractedText) {
   extractedText = bestResult?.text || "";
 }
@@ -1186,6 +1187,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
