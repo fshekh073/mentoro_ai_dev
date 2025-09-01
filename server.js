@@ -677,9 +677,9 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
         .toBuffer(),
     ]);
 
-    if (!ocrWorker) {
-      return res.status(500).json({ error: 'OCR engine not initialized.' });
-    }
+    if (!ocrWorkers || ocrWorkers.length === 0) {
+  return res.status(500).json({ error: 'OCR engine pool not initialized.' });
+}
 
    const variants = [grayBuffer, handwritingBuffer, blueInkBuffer];
 
@@ -1187,6 +1187,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
