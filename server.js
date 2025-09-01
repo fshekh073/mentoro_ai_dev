@@ -694,20 +694,32 @@ const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
 });
 
 // Run OCR on all variants in parallel
-const results = await Promise.all(
+onst results = await Promise.all(
   variants.map(v => worker.recognize(v))
 );
 
-// Pick best result
-let bestResult = results.reduce((best, r, idx) => {
-  const { text, confidence } = r.data;
-  if (!best || confidence > best.confidence) {
-    return { text, confidence, variant: idx };
-  }
-  return best;
-}, null);
+let bestResult = null;
+let extractedText = "";
 
-let extractedText = bestResult?.text || "";
+// Try to find an "early stop" good result (like old code)
+for (let i = 0; i < results.length; i++) {
+  const { text, confidence } = results[i].data;
+  if (!bestResult || confidence > bestResult.confidence) {
+    bestResult = { text, confidence, variant: i };
+  }
+  if (confidence > 85 && text.trim().length > 20) {
+    console.log(`✅ Early stop: OCR good enough on variant ${i}, confidence ${confidence}`);
+    extractedText = text;
+    break;
+  }
+}
+
+// If early stop didn’t trigger, fall back to best of all
+if (!extractedText) {
+  extractedText = bestResult?.text || "";
+}
+
+    
 console.log("Best OCR Variant:", bestResult?.variant);
 console.log("OCR Confidence:", bestResult?.confidence);
 
@@ -1175,6 +1187,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
