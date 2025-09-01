@@ -686,7 +686,8 @@ app.post('/api/ocr', authenticateToken, async (req, res) => {
 // Pick a worker from the pool (round-robin/random)
 const worker = ocrWorkers[Math.floor(Math.random() * ocrWorkers.length)];
 
-    await worker.setParameters({
+// Reapply strong OCR parameters for NCERT clarity
+await worker.setParameters({
   tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ^=+-*/(). ',
   preserve_interword_spaces: '1',
   tessedit_pageseg_mode: '6',
@@ -701,12 +702,14 @@ const results = await Promise.all(
 let bestResult = null;
 let extractedText = "";
 
-// Try to find an "early stop" good result (like old code)
+// Try early stop logic like before
 for (let i = 0; i < results.length; i++) {
   const { text, confidence } = results[i].data;
+
   if (!bestResult || confidence > bestResult.confidence) {
     bestResult = { text, confidence, variant: i };
   }
+
   if (confidence > 85 && text.trim().length > 20) {
     console.log(`✅ Early stop: OCR good enough on variant ${i}, confidence ${confidence}`);
     extractedText = text;
@@ -714,17 +717,13 @@ for (let i = 0; i < results.length; i++) {
   }
 }
 
-// If early stop didn’t trigger, fall back to best of all
+// If early stop didn’t trigger, fall back to best result
 if (!extractedText) {
   extractedText = bestResult?.text || "";
 }
 
-    
 console.log("Best OCR Variant:", bestResult?.variant);
 console.log("OCR Confidence:", bestResult?.confidence);
-
-    console.log("Best OCR Variant:", bestResult?.variant);
-    console.log("OCR Confidence:", bestResult?.confidence);
 
     // Check if math-like text but low confidence or too short → fallback to OpenAI Vision OCR
     const mathLike = /[0-9x=+\-*/()]/.test(extractedText);
@@ -1187,6 +1186,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
